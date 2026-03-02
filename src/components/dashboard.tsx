@@ -102,8 +102,8 @@ export function Dashboard() {
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'value', dir: 'desc' });
   const [showClosed, setShowClosed] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (isInitial = false) => {
+    if (isInitial) setLoading(true);
     try {
       const [posRes, accRes] = await Promise.all([
         fetch("/api/positions"),
@@ -116,13 +116,13 @@ export function Dashboard() {
     } catch {
       // silently handle
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 60_000);
+    fetchData(true);
+    const interval = setInterval(() => fetchData(false), 60_000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
