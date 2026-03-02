@@ -1,23 +1,18 @@
 "use client";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MarkdownContent } from "@/components/markdown-content";
-import { BarChart3, Briefcase, User } from "lucide-react";
+import { BarChart3, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { AgentType } from "@/types";
+import type { AgentType, Instrument } from "@/types";
 
 const agentConfig = {
   "market-analyst": {
-    label: "Market Analyst",
+    label: "MARKET ANALYST",
     icon: BarChart3,
-    color: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-    fallback: "MA",
   },
   "portfolio-analyst": {
-    label: "Portfolio Analyst",
+    label: "PORTFOLIO ANALYST",
     icon: Briefcase,
-    color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-    fallback: "PA",
   },
 } as const;
 
@@ -26,20 +21,14 @@ interface ChatMessageProps {
   content: string;
   agent?: AgentType;
   isStreaming?: boolean;
+  instruments?: Instrument[];
 }
 
-export function ChatMessage({ role, content, agent, isStreaming }: ChatMessageProps) {
+export function ChatMessage({ role, content, agent, isStreaming, instruments }: ChatMessageProps) {
   if (role === "user") {
     return (
-      <div className="flex gap-3 justify-end">
-        <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5 text-primary-foreground">
-          <p className="text-sm whitespace-pre-wrap">{content}</p>
-        </div>
-        <Avatar className="h-8 w-8 shrink-0">
-          <AvatarFallback className="bg-muted">
-            <User className="h-4 w-4" />
-          </AvatarFallback>
-        </Avatar>
+      <div className="border-l-2 border-primary pl-4 py-1">
+        <p className="text-sm whitespace-pre-wrap">{content}</p>
       </div>
     );
   }
@@ -48,26 +37,21 @@ export function ChatMessage({ role, content, agent, isStreaming }: ChatMessagePr
   const Icon = config.icon;
 
   return (
-    <div className="flex gap-3">
-      <Avatar className="h-8 w-8 shrink-0">
-        <AvatarFallback className={config.color}>
-          <Icon className="h-4 w-4" />
-        </AvatarFallback>
-      </Avatar>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-muted-foreground mb-1">
+    <div className="py-1">
+      <div className="flex items-center gap-1.5 mb-2">
+        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {config.label}
-        </p>
-        <div className={cn(
-          "rounded-2xl rounded-tl-sm bg-muted px-4 py-2.5",
-          isStreaming && "animate-pulse"
-        )}>
-          {content ? (
-            <MarkdownContent content={content} />
-          ) : (
-            <p className="text-sm text-muted-foreground">Thinking...</p>
-          )}
-        </div>
+        </span>
+      </div>
+      <div className={cn("border-t border-border pt-3")}>
+        {content ? (
+          <div className={isStreaming ? "blink-cursor" : undefined}>
+            <MarkdownContent content={content} instruments={instruments} />
+          </div>
+        ) : (
+          <span className="blink-cursor text-sm text-muted-foreground" />
+        )}
       </div>
     </div>
   );

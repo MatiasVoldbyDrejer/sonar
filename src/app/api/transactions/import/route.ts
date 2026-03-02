@@ -45,7 +45,14 @@ export async function POST(request: NextRequest) {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   );
 
+  const checkDuplicate = db.prepare(
+    `SELECT id FROM transactions
+     WHERE account_id = ? AND instrument_id = ? AND type = ? AND date = ?
+     AND quantity = ? AND price = ?`
+  );
+
   let imported = 0;
+  let skipped = 0;
   const insertAll = db.transaction(() => {
     for (const tx of parsed) {
       // Ensure instrument exists
@@ -54,6 +61,14 @@ export async function POST(request: NextRequest) {
       if (!instrument) continue;
 
       const inst = mapInstrumentRow(instrument);
+
+      // Check for duplicate
+      const existing = checkDuplicate.get(accountId, inst.id, tx.type, tx.date, tx.quantity, tx.price);
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
       insertTransaction.run(accountId, inst.id, tx.type, tx.date, tx.quantity, tx.price, tx.fee, tx.feeCurrency);
       imported++;
     }
@@ -61,5 +76,5 @@ export async function POST(request: NextRequest) {
 
   insertAll();
 
-  return NextResponse.json({ imported, total: parsed.length });
+  return NextResponse.json({ imported, skipped, total: parsed.length });
 }

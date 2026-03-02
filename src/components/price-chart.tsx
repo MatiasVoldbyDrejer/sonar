@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   ChartContainer,
   ChartTooltip,
@@ -22,7 +22,7 @@ const periods = [
 const chartConfig = {
   close: {
     label: "Price",
-    color: "var(--chart-1)",
+    color: "var(--primary)",
   },
 };
 
@@ -49,101 +49,104 @@ export function PriceChart({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-sm">Price Chart</CardTitle>
+        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          Price Chart
+        </CardTitle>
         <div className="flex gap-1">
           {periods.map((p) => (
-            <Button
+            <button
               key={p.value}
-              variant={period === p.value ? "default" : "ghost"}
-              size="sm"
-              className="h-7 px-2 text-xs"
+              className={cn(
+                "h-7 px-2.5 text-xs font-medium rounded-md transition-colors duration-150",
+                period === p.value
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"
+              )}
               onClick={() => setPeriod(p.value)}
             >
               {p.label}
-            </Button>
+            </button>
           ))}
         </div>
       </CardHeader>
       <CardContent>
-        {loading ? (
-          <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-            Loading chart...
-          </div>
-        ) : data.length === 0 ? (
-          <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-            No chart data available
-          </div>
-        ) : (
-          <ChartContainer config={chartConfig} className="h-[300px] w-full">
-            <ResponsiveContainer>
-              <AreaChart data={data}>
-                <defs>
-                  <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="5%"
-                      stopColor="var(--chart-1)"
-                      stopOpacity={0.3}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor="var(--chart-1)"
-                      stopOpacity={0}
-                    />
-                  </linearGradient>
-                </defs>
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={(val) => {
-                    const d = new Date(val);
-                    return d.toLocaleDateString("da-DK", {
-                      month: "short",
-                      year: period === "5y" ? "2-digit" : undefined,
-                    });
-                  }}
-                  tickLine={false}
-                  axisLine={false}
-                  fontSize={11}
-                  interval="preserveStartEnd"
-                  minTickGap={50}
-                />
-                <YAxis
-                  tickFormatter={(val) =>
-                    new Intl.NumberFormat("da-DK", {
-                      style: "currency",
-                      currency,
-                      notation: "compact",
-                    }).format(val)
-                  }
-                  tickLine={false}
-                  axisLine={false}
-                  fontSize={11}
-                  width={65}
-                  domain={["auto", "auto"]}
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      formatter={(value) =>
-                        new Intl.NumberFormat("da-DK", {
-                          style: "currency",
-                          currency,
-                        }).format(value as number)
-                      }
-                    />
-                  }
-                />
-                <Area
-                  type="monotone"
-                  dataKey="close"
-                  stroke="var(--chart-1)"
-                  fillOpacity={1}
-                  fill="url(#colorPrice)"
-                  strokeWidth={1.5}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        )}
+        <div className={cn("transition-opacity duration-200", loading && "opacity-50")}>
+          {data.length === 0 && !loading ? (
+            <div className="h-[400px] flex items-center justify-center text-muted-foreground">
+              No chart data available
+            </div>
+          ) : (
+            <ChartContainer config={chartConfig} className="h-[400px] w-full">
+              <ResponsiveContainer>
+                <AreaChart data={data}>
+                  <defs>
+                    <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                      <stop
+                        offset="5%"
+                        stopColor="var(--primary)"
+                        stopOpacity={0.2}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor="var(--primary)"
+                        stopOpacity={0}
+                      />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(val) => {
+                      const d = new Date(val);
+                      return d.toLocaleDateString("da-DK", {
+                        month: "short",
+                        year: period === "5y" ? "2-digit" : undefined,
+                      });
+                    }}
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={11}
+                    interval="preserveStartEnd"
+                    minTickGap={50}
+                  />
+                  <YAxis
+                    tickFormatter={(val) =>
+                      new Intl.NumberFormat("da-DK", {
+                        style: "currency",
+                        currency,
+                        notation: "compact",
+                      }).format(val)
+                    }
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={11}
+                    width={65}
+                    domain={["auto", "auto"]}
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        formatter={(value) =>
+                          new Intl.NumberFormat("da-DK", {
+                            style: "currency",
+                            currency,
+                          }).format(value as number)
+                        }
+                      />
+                    }
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="close"
+                    stroke="var(--primary)"
+                    fillOpacity={1}
+                    fill="url(#colorPrice)"
+                    strokeWidth={1.5}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "@/components/chat-message";
 import { Send } from "lucide-react";
-import type { Chat, AgentType } from "@/types";
+import type { Chat, AgentType, Instrument } from "@/types";
 
 interface StoredMessage {
   id: string;
@@ -32,6 +32,7 @@ interface ChatViewProps {
 export function ChatView({ chat }: ChatViewProps) {
   const [currentAgent, setCurrentAgent] = useState<AgentType>("portfolio-analyst");
   const [messages, setMessages] = useState<StoredMessage[]>(chat.messages);
+  const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [streamingContent, setStreamingContent] = useState("");
   const [streamingAgent, setStreamingAgent] = useState<AgentType | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -50,6 +51,14 @@ export function ChatView({ chat }: ChatViewProps) {
       if (el) el.scrollTop = el.scrollHeight;
     }
   }, [messages, streamingContent]);
+
+  // Fetch instruments for inline badges in chat
+  useEffect(() => {
+    fetch("/api/instruments")
+      .then((r) => r.json())
+      .then((data) => setInstruments(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
 
   const persistMessages = useCallback(
     (msgs: StoredMessage[]) => {
@@ -190,7 +199,6 @@ export function ChatView({ chat }: ChatViewProps) {
     setInputValue("");
     setShowMentionMenu(false);
 
-    // Build conversation context for the API — include relevant history
     const apiMessages = updatedMessages.map((m) => ({
       role: m.role,
       content: m.content,
@@ -243,10 +251,10 @@ export function ChatView({ chat }: ChatViewProps) {
     <div className="flex flex-col h-[calc(100vh-3.5rem)]">
       {/* Messages */}
       <ScrollArea className="flex-1 px-4" ref={scrollRef}>
-        <div className="max-w-3xl mx-auto py-4 space-y-4">
+        <div className="max-w-3xl mx-auto py-4 space-y-6">
           {generatingDaily && messages.length === 0 && !streamingContent && (
             <div className="text-center py-8 text-muted-foreground">
-              <p className="text-sm">Generating daily briefings...</p>
+              <span className="blink-cursor text-sm">Generating daily briefings</span>
             </div>
           )}
 
@@ -256,6 +264,7 @@ export function ChatView({ chat }: ChatViewProps) {
               role={message.role}
               content={message.content}
               agent={message.metadata?.agent}
+              instruments={instruments}
             />
           ))}
 
@@ -265,21 +274,22 @@ export function ChatView({ chat }: ChatViewProps) {
               content={streamingContent}
               agent={streamingAgent}
               isStreaming
+              instruments={instruments}
             />
           )}
         </div>
       </ScrollArea>
 
       {/* Input */}
-      <div className="border-t bg-background p-4">
+      <div className="glass p-4">
         <form onSubmit={handleSubmit} className="max-w-3xl mx-auto relative">
           {showMentionMenu && (
-            <div className="absolute bottom-full mb-1 left-0 bg-popover border rounded-md shadow-md p-1 z-10">
+            <div className="glass absolute bottom-full mb-1 left-0 rounded-md shadow-md p-1 z-10">
               {AGENTS.map((agent) => (
                 <button
                   key={agent.id}
                   type="button"
-                  className="block w-full text-left text-sm px-3 py-1.5 rounded hover:bg-accent"
+                  className="block w-full text-left text-sm px-3 py-1.5 rounded hover:bg-white/[0.06]"
                   onClick={() => insertMention(agent.id)}
                 >
                   {agent.label}
@@ -301,14 +311,14 @@ export function ChatView({ chat }: ChatViewProps) {
               }}
               onKeyDown={handleKeyDown}
               placeholder="Message @market-analyst or @portfolio-analyst..."
-              className="flex-1 min-h-[44px] max-h-[200px] resize-none rounded-lg border bg-background px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex-1 min-h-[44px] max-h-[200px] resize-none rounded-lg bg-white/[0.04] border-white/[0.08] border px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               rows={1}
               disabled={isStreaming || generatingDaily}
             />
             <Button
               type="submit"
               size="icon"
-              className="h-[44px] w-[44px] shrink-0"
+              className="h-[44px] w-[44px] shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={!inputValue.trim() || isStreaming || generatingDaily}
             >
               <Send className="h-4 w-4" />

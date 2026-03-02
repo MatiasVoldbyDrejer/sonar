@@ -146,6 +146,8 @@ export function aggregatePositionsDKK(
       unrealizedGainLoss: unrealizedGainLossDKK,
       currentPrice: currentPriceDKK,
       currentValue: currentValueDKK,
+      dayChange: null,
+      dayChangePercent: null,
       reportingCurrency: 'DKK',
     });
   }

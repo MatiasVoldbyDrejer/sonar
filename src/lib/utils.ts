@@ -4,3 +4,27 @@ import { twMerge } from "tailwind-merge"
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
+
+export function gainLossColor(value: number): string {
+  if (value > 0) return "text-gain"
+  if (value < 0) return "text-loss"
+  return "text-muted-foreground"
+}
+
+export function portfolioWeight(value: number, total: number): string {
+  if (total <= 0) return "0.0%"
+  return `${((value / total) * 100).toFixed(1)}%`
+}
+
+export function formatDKK(value: number): string {
+  return new Intl.NumberFormat("da-DK", {
+    style: "currency",
+    currency: "DKK",
+    minimumFractionDigits: 2,
+  }).format(value)
+}
+
+export function formatPercent(value: number): string {
+  const sign = value >= 0 ? "+" : ""
+  return `${sign}${value.toFixed(2)}%`
+}

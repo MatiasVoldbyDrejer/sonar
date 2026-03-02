@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { Header } from "@/components/header";
+import { PositionLookupProvider } from "@/hooks/use-position-lookup";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -25,14 +26,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background`}
       >
         <Header />
-        <main className="container mx-auto px-4 py-6 max-w-7xl">
-          {children}
-        </main>
+        <PositionLookupProvider>
+          <main className="container mx-auto px-4 py-6 max-w-7xl">
+            {children}
+          </main>
+        </PositionLookupProvider>
         <Toaster />
       </body>
     </html>

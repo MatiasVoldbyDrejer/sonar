@@ -52,8 +52,10 @@ export async function GET() {
   ]);
 
   const currentPrices = new Map<string, number>();
+  const quoteChanges = new Map<string, { change: number; changePercent: number }>();
   for (const [symbol, quote] of quotes) {
     currentPrices.set(symbol, quote.price);
+    quoteChanges.set(symbol, { change: quote.change, changePercent: quote.changePercent });
   }
 
   const positions = aggregatePositionsDKK(
@@ -65,5 +67,19 @@ export async function GET() {
     currentRates
   );
 
-  return NextResponse.json(positions);
+  // Enrich positions with day change data
+  const enriched = positions.map(p => {
+    const symbol = p.instrument.yahooSymbol;
+    const qc = symbol ? quoteChanges.get(symbol) : null;
+    const fxRate = p.instrument.currency !== 'DKK' && symbol
+      ? (currentRates.get(p.instrument.currency) ?? 1)
+      : 1;
+    return {
+      ...p,
+      dayChange: qc ? qc.change * p.quantity * fxRate : null,
+      dayChangePercent: qc ? qc.changePercent : null,
+    };
+  });
+
+  return NextResponse.json(enriched);
 }

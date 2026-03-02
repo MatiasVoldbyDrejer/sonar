@@ -14,6 +14,9 @@ import {
 } from "@/components/ui/table";
 import { MarkdownContent } from "@/components/markdown-content";
 import { PriceChart } from "@/components/price-chart";
+import { InstrumentSkeleton } from "@/components/skeleton-shimmer";
+import { InstrumentBadge } from "@/components/instrument-badge";
+import { cn, gainLossColor } from "@/lib/utils";
 import type { Instrument, Transaction, Position, InstrumentStats, Quote } from "@/types";
 import Link from "next/link";
 
@@ -57,7 +60,6 @@ export function InstrumentDetail({ isin }: { isin: string }) {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Get instruments to find the one matching this ISIN
       const instRes = await fetch("/api/instruments");
       const instruments: Instrument[] = await instRes.json();
       const inst = instruments.find((i) => i.isin === isin);
@@ -67,10 +69,8 @@ export function InstrumentDetail({ isin }: { isin: string }) {
       }
       setInstrument(inst);
 
-      // Fetch in parallel
       const promises: Promise<void>[] = [];
 
-      // Positions (already in DKK from API)
       promises.push(
         fetch("/api/positions")
           .then((r) => r.json())
@@ -79,14 +79,12 @@ export function InstrumentDetail({ isin }: { isin: string }) {
           })
       );
 
-      // Transactions
       promises.push(
         fetch(`/api/transactions?instrumentId=${inst.id}`)
           .then((r) => r.json())
           .then((data) => setTransactions(data))
       );
 
-      // Quote + Stats
       if (inst.yahooSymbol && inst.hasQuoteSource) {
         promises.push(
           fetch(`/api/quotes/${encodeURIComponent(inst.yahooSymbol)}`)
@@ -128,16 +126,14 @@ export function InstrumentDetail({ isin }: { isin: string }) {
   };
 
   if (loading) {
-    return (
-      <div className="py-12 text-center text-muted-foreground">Loading...</div>
-    );
+    return <InstrumentSkeleton />;
   }
 
   if (!instrument) {
     return (
       <div className="py-12 text-center">
         <p className="text-muted-foreground">Instrument not found.</p>
-        <Link href="/" className="text-blue-600 hover:underline mt-2 inline-block">
+        <Link href="/" className="text-primary hover:underline mt-2 inline-block">
           Back to dashboard
         </Link>
       </div>
@@ -175,7 +171,10 @@ export function InstrumentDetail({ isin }: { isin: string }) {
             </Link>
             <span className="text-muted-foreground">/</span>
           </div>
-          <h1 className="text-2xl font-bold mt-1">{instrument.name}</h1>
+          <div className="flex items-center gap-3 mt-1">
+            <InstrumentBadge instrument={instrument} showName={false} linked={false} size="lg" />
+            <h1 className="text-2xl font-semibold">{instrument.name}</h1>
+          </div>
           <div className="flex items-center gap-2 mt-1">
             <Badge variant="outline">{instrument.type.toUpperCase()}</Badge>
             {instrument.ticker && (
@@ -193,14 +192,10 @@ export function InstrumentDetail({ isin }: { isin: string }) {
         </div>
         {quote && (
           <div className="text-right">
-            <div className="text-3xl font-bold">
+            <div className="text-3xl font-semibold tabular-nums">
               {formatCurrency(quote.price, quote.currency)}
             </div>
-            <div
-              className={
-                quote.change >= 0 ? "text-green-600" : "text-red-600"
-              }
-            >
+            <div className={cn("tabular-nums", gainLossColor(quote.change))}>
               {quote.change >= 0 ? "+" : ""}
               {quote.change.toFixed(2)} ({quote.changePercent.toFixed(2)}%)
             </div>
@@ -216,30 +211,26 @@ export function InstrumentDetail({ isin }: { isin: string }) {
         {totalPosition.quantity > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Your Position (DKK)</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                Your Position (DKK)
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Shares</span>
-                <span>{totalPosition.quantity.toFixed(totalPosition.quantity % 1 === 0 ? 0 : 4)}</span>
+                <span className="tabular-nums">{totalPosition.quantity.toFixed(totalPosition.quantity % 1 === 0 ? 0 : 4)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Cost Basis</span>
-                <span>{formatDKK(totalPosition.costBasis)}</span>
+                <span className="tabular-nums">{formatDKK(totalPosition.costBasis)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Market Value</span>
-                <span>{formatDKK(totalPosition.currentValue)}</span>
+                <span className="tabular-nums">{formatDKK(totalPosition.currentValue)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Unrealized P/L</span>
-                <span
-                  className={
-                    totalPosition.unrealizedGainLoss >= 0
-                      ? "text-green-600"
-                      : "text-red-600"
-                  }
-                >
+                <span className={cn("tabular-nums", gainLossColor(totalPosition.unrealizedGainLoss))}>
                   {formatDKK(totalPosition.unrealizedGainLoss)}
                   {totalPosition.costBasis > 0 &&
                     ` (${((totalPosition.unrealizedGainLoss / totalPosition.costBasis) * 100).toFixed(2)}%)`}
@@ -247,13 +238,7 @@ export function InstrumentDetail({ isin }: { isin: string }) {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Realized P/L</span>
-                <span
-                  className={
-                    totalPosition.realizedGainLoss >= 0
-                      ? "text-green-600"
-                      : "text-red-600"
-                  }
-                >
+                <span className={cn("tabular-nums", gainLossColor(totalPosition.realizedGainLoss))}>
                   {formatDKK(totalPosition.realizedGainLoss)}
                 </span>
               </div>
@@ -264,16 +249,18 @@ export function InstrumentDetail({ isin }: { isin: string }) {
         {stats && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Key Stats</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                Key Stats
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Previous Close</span>
-                <span>{stats.previousClose != null ? formatCurrency(stats.previousClose, instrument.currency) : "—"}</span>
+                <span className="tabular-nums">{stats.previousClose != null ? formatCurrency(stats.previousClose, instrument.currency) : "—"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Day Range</span>
-                <span>
+                <span className="tabular-nums">
                   {stats.dayLow != null && stats.dayHigh != null
                     ? `${stats.dayLow.toFixed(2)} – ${stats.dayHigh.toFixed(2)}`
                     : "—"}
@@ -281,7 +268,7 @@ export function InstrumentDetail({ isin }: { isin: string }) {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">52W Range</span>
-                <span>
+                <span className="tabular-nums">
                   {stats.fiftyTwoWeekLow != null && stats.fiftyTwoWeekHigh != null
                     ? `${stats.fiftyTwoWeekLow.toFixed(2)} – ${stats.fiftyTwoWeekHigh.toFixed(2)}`
                     : "—"}
@@ -289,15 +276,15 @@ export function InstrumentDetail({ isin }: { isin: string }) {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Market Cap</span>
-                <span>{formatNumber(stats.marketCap)}</span>
+                <span className="tabular-nums">{formatNumber(stats.marketCap)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">P/E Ratio</span>
-                <span>{stats.peRatio != null ? stats.peRatio.toFixed(2) : "—"}</span>
+                <span className="tabular-nums">{stats.peRatio != null ? stats.peRatio.toFixed(2) : "—"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Dividend Yield</span>
-                <span>{stats.dividendYield != null ? `${(stats.dividendYield * 100).toFixed(2)}%` : "—"}</span>
+                <span className="tabular-nums">{stats.dividendYield != null ? `${(stats.dividendYield * 100).toFixed(2)}%` : "—"}</span>
               </div>
             </CardContent>
           </Card>
@@ -310,52 +297,58 @@ export function InstrumentDetail({ isin }: { isin: string }) {
       )}
 
       {/* AI Analysis */}
-      <Card>
-        <CardHeader>
-          <CardTitle>AI Analysis</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!analysis ? (
-            <div className="text-center py-6">
-              <p className="text-muted-foreground mb-3">
-                Get a comprehensive AI-powered analysis of this instrument.
-              </p>
-              <Button onClick={fetchAnalysis} disabled={loadingAnalysis}>
-                {loadingAnalysis ? "Analyzing..." : "Generate Analysis"}
-              </Button>
-            </div>
-          ) : (
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                {analysis.cached && (
-                  <Badge variant="secondary">Cached</Badge>
-                )}
-                <span className="text-xs text-muted-foreground">
-                  Generated{" "}
-                  {new Date(analysis.createdAt).toLocaleString("da-DK")}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={fetchAnalysis}
-                  disabled={loadingAnalysis}
-                >
-                  {loadingAnalysis ? "Refreshing..." : "Refresh"}
+      <div className="pt-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              AI Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!analysis ? (
+              <div className="text-center py-6">
+                <p className="text-muted-foreground mb-3">
+                  Get a comprehensive AI-powered analysis of this instrument.
+                </p>
+                <Button onClick={fetchAnalysis} disabled={loadingAnalysis}>
+                  {loadingAnalysis ? "Analyzing..." : "Generate Analysis"}
                 </Button>
               </div>
-              <MarkdownContent
-                content={analysis.content}
-                citations={analysis.citations}
-              />
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            ) : (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  {analysis.cached && (
+                    <Badge variant="secondary">Cached</Badge>
+                  )}
+                  <span className="text-xs text-muted-foreground">
+                    Generated{" "}
+                    {new Date(analysis.createdAt).toLocaleString("da-DK")}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={fetchAnalysis}
+                    disabled={loadingAnalysis}
+                  >
+                    {loadingAnalysis ? "Refreshing..." : "Refresh"}
+                  </Button>
+                </div>
+                <MarkdownContent
+                  content={analysis.content}
+                  citations={analysis.citations}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Transaction History */}
       <Card>
         <CardHeader>
-          <CardTitle>Transaction History</CardTitle>
+          <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+            Transaction History
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {transactions.length === 0 ? (
@@ -390,18 +383,18 @@ export function InstrumentDetail({ isin }: { isin: string }) {
                           {tx.type.toUpperCase()}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right tabular-nums">
                         {tx.quantity.toFixed(tx.quantity % 1 === 0 ? 0 : 4)}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right tabular-nums">
                         {formatCurrency(tx.price, instrument.currency)}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right tabular-nums">
                         {tx.fee > 0
                           ? formatCurrency(tx.fee, tx.feeCurrency || instrument.currency)
                           : "—"}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right tabular-nums">
                         {formatCurrency(tx.quantity * tx.price, instrument.currency)}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">

@@ -69,6 +69,52 @@ ${holdingsList}
 - When answering follow-up questions, stay in your role as portfolio-specific analyst`;
 }
 
+export function pulsePrompt(positions: Position[]): string {
+  const holdingsList = buildHoldingsList(positions);
+
+  return `You are a portfolio intelligence system. Scan the investor's holdings for actionable signals from the past few days.
+
+**Current holdings:**
+${holdingsList}
+
+**Your task:** Return a JSON code block with a brief portfolio summary and up to 5 action items for holdings that have genuine recent signals. Only flag holdings where something notable has actually happened or is imminent.
+
+**Signal types (use exactly these values):**
+- "earnings" — upcoming or recent earnings report
+- "risk" — risk flag, negative development, regulatory concern
+- "analyst-change" — analyst rating or price target change
+- "opportunity" — positive development, undervaluation signal
+- "catalyst" — upcoming event that could move the price
+- "news" — significant news coverage
+
+**Rules:**
+- Only include holdings with genuine, verifiable recent signals
+- Each ISIN must exactly match one from the holdings list above
+- Maximum 5 items, ordered by importance
+- If nothing notable is happening for any holding, return empty items array with a calm summary
+- Keep headline to one short sentence
+- Keep explanation to 1-2 sentences
+- Keep suggestedAction to one short actionable sentence
+
+Return ONLY a JSON code block in this exact format:
+\`\`\`json
+{
+  "summary": "One to two sentence portfolio overview.",
+  "items": [
+    {
+      "isin": "US0378331005",
+      "ticker": "AAPL",
+      "instrumentName": "Apple Inc.",
+      "signalType": "earnings",
+      "headline": "Q1 earnings beat expectations",
+      "explanation": "Revenue came in 5% above consensus. Services segment grew 18% YoY.",
+      "suggestedAction": "Hold current position; consider adding on any pullback."
+    }
+  ]
+}
+\`\`\``;
+}
+
 export function deepDivePrompt(name: string, isin: string, ticker: string | null): string {
   const identifier = ticker ? `${name} (${ticker}, ISIN: ${isin})` : `${name} (ISIN: ${isin})`;
 

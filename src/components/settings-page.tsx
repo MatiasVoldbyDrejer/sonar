@@ -29,8 +29,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import type { Instrument, Account, Transaction } from "@/types";
+import { EditInstrumentForm } from "@/components/edit-instrument-form";
+import { InstrumentBadge } from "@/components/instrument-badge";
 
 function formatCurrency(value: number, currency: string): string {
   return new Intl.NumberFormat("da-DK", {
@@ -70,7 +73,7 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
       <Tabs defaultValue="instruments">
         <TabsList>
           <TabsTrigger value="instruments">Instruments</TabsTrigger>
@@ -117,6 +120,7 @@ function InstrumentsTab({
   onRefresh: () => void;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingInstrument, setEditingInstrument] = useState<Instrument | null>(null);
 
   return (
     <Card>
@@ -160,36 +164,56 @@ function InstrumentsTab({
             <TableBody>
               {instruments.map((inst) => (
                 <TableRow key={inst.id}>
-                  <TableCell className="font-medium">{inst.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <InstrumentBadge instrument={inst} linked={false}>
+                      {inst.name}
+                    </InstrumentBadge>
+                  </TableCell>
                   <TableCell className="font-mono text-xs">{inst.isin}</TableCell>
                   <TableCell>{inst.ticker || "—"}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{inst.type}</Badge>
                   </TableCell>
                   <TableCell>{inst.currency}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {inst.yahooSymbol || "—"}
+                  <TableCell className="text-xs">
+                    {inst.yahooSymbol ? (
+                      <span className="text-muted-foreground">{inst.yahooSymbol}</span>
+                    ) : (
+                      <span className="text-yellow-500/80 inline-flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        Missing
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
-                      onClick={async () => {
-                        const res = await fetch(`/api/instruments/${inst.id}`, {
-                          method: "DELETE",
-                        });
-                        if (res.ok) {
-                          toast.success("Instrument deleted");
-                          onRefresh();
-                        } else {
-                          const data = await res.json();
-                          toast.error(data.error || "Failed to delete");
-                        }
-                      }}
-                    >
-                      Delete
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingInstrument(inst)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={async () => {
+                          const res = await fetch(`/api/instruments/${inst.id}`, {
+                            method: "DELETE",
+                          });
+                          if (res.ok) {
+                            toast.success("Instrument deleted");
+                            onRefresh();
+                          } else {
+                            const data = await res.json();
+                            toast.error(data.error || "Failed to delete");
+                          }
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -197,6 +221,24 @@ function InstrumentsTab({
           </Table>
         )}
       </CardContent>
+
+      {/* Edit Instrument Dialog */}
+      <Dialog open={!!editingInstrument} onOpenChange={(open) => !open && setEditingInstrument(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Instrument</DialogTitle>
+          </DialogHeader>
+          {editingInstrument && (
+            <EditInstrumentForm
+              instrument={editingInstrument}
+              onSuccess={() => {
+                setEditingInstrument(null);
+                onRefresh();
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
@@ -470,7 +512,13 @@ function TransactionsTab({
                   <TableRow key={tx.id}>
                     <TableCell>{tx.date}</TableCell>
                     <TableCell>
-                      {inst?.ticker || inst?.name || tx.instrumentId}
+                      {inst ? (
+                        <InstrumentBadge instrument={inst} linked={false}>
+                          {inst.ticker || inst.name}
+                        </InstrumentBadge>
+                      ) : (
+                        String(tx.instrumentId)
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant={tx.type === "buy" ? "default" : "secondary"}>
@@ -773,7 +821,9 @@ function ImportTab({
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success(`${data.imported} transactions imported`);
+        toast.success(
+          `${data.imported} imported${data.skipped ? `, ${data.skipped} duplicates skipped` : ''}`
+        );
         setPreview(null);
         setFile(null);
         onRefresh();

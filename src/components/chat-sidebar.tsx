@@ -29,8 +29,8 @@ export function ChatSidebar({ chats }: ChatSidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="w-56 shrink-0 border-r bg-muted/30">
-      <div className="p-3 border-b">
+    <aside className="glass w-56 shrink-0">
+      <div className="p-3 border-b border-border">
         <h2 className="text-sm font-semibold">Conversations</h2>
       </div>
       <ScrollArea className="h-[calc(100vh-8rem)]">
@@ -44,10 +44,10 @@ export function ChatSidebar({ chats }: ChatSidebarProps) {
                 key={chat.id}
                 href={href}
                 className={cn(
-                  "block rounded-md px-3 py-2 text-sm transition-colors",
+                  "block rounded-md px-3 py-2 text-sm transition-colors duration-100",
                   isActive
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
+                    ? "bg-white/[0.06] text-foreground"
+                    : "text-muted-foreground hover:bg-white/[0.03] hover:text-foreground"
                 )}
               >
                 <div className="font-medium truncate">{formatDate(chat.date)}</div>

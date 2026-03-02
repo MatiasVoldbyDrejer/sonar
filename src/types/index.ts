@@ -41,6 +41,8 @@ export interface Position {
   unrealizedGainLoss: number;
   currentPrice: number | null;
   currentValue: number | null;
+  dayChange: number | null;
+  dayChangePercent: number | null;
   reportingCurrency: 'DKK';
 }
 
@@ -97,6 +99,23 @@ export interface ChatMessage {
 }
 
 export type AgentType = 'market-analyst' | 'portfolio-analyst';
+
+export type PulseSignalType = 'earnings' | 'risk' | 'analyst-change' | 'opportunity' | 'catalyst' | 'news';
+
+export interface PulseItem {
+  isin: string;
+  ticker: string | null;
+  instrumentName: string;
+  signalType: PulseSignalType;
+  headline: string;
+  explanation: string;
+  suggestedAction: string;
+}
+
+export interface PulseResponse {
+  summary: string;
+  items: PulseItem[];
+}
 
 export interface InstrumentStats {
   previousClose: number | null;
