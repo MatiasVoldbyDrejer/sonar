@@ -1,6 +1,6 @@
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useState } from "react";
 import {
   HoverCard,
   HoverCardContent,
@@ -54,16 +54,34 @@ export function InstrumentBadge({
   const { getPositions } = usePositionLookup();
   const positions = position ? [position] : getPositions(instrument.isin);
 
-  const avatarSize = size === "lg" ? "h-8 w-8" : "h-5 w-5";
+  const avatarSize = size === "lg" ? "size-8" : "size-[18px]";
   const textSize = size === "lg" ? "text-[11px]" : "text-[9px]";
+  const logoUrl = getLogoUrl(instrument.yahooSymbol);
+  const [imgFailed, setImgFailed] = useState(false);
 
   const logo = (
-    <Avatar className={cn(avatarSize, "shrink-0")}>
-      <AvatarImage src={getLogoUrl(instrument.yahooSymbol)} alt={instrument.name} />
-      <AvatarFallback className={cn(textSize, "font-medium bg-muted")}>
-        {getInitials(instrument.name, instrument.ticker)}
-      </AvatarFallback>
-    </Avatar>
+    <span
+      className={cn(
+        avatarSize,
+        "shrink-0 rounded-full overflow-hidden inline-flex items-center justify-center",
+        "ring-1 ring-white/20 ring-offset-muted",
+        !logoUrl || imgFailed ? "bg-muted" : "bg-black"
+      )}
+    >
+      {logoUrl && !imgFailed ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={logoUrl}
+          alt={instrument.name}
+          className="size-full object-cover"
+          onError={() => setImgFailed(true)}
+        />
+      ) : (
+        <span className={cn(textSize, "font-medium text-muted-foreground")}>
+          {getInitials(instrument.name, instrument.ticker)}
+        </span>
+      )}
+    </span>
   );
 
   const defaultLabel = showName ? (
@@ -71,7 +89,7 @@ export function InstrumentBadge({
   ) : null;
 
   const content = (
-    <span className={cn("inline-flex items-center gap-1.5", className)}>
+    <span className={cn("inline-flex items-center gap-1 align-middle mb-[3px]", className)}>
       {logo}
       {children ?? defaultLabel}
     </span>

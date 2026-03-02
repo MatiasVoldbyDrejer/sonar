@@ -11,7 +11,7 @@ interface StoredMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
-  metadata?: { agent?: AgentType };
+  metadata?: { agent?: AgentType; citations?: string[] };
 }
 
 const AGENTS: { id: AgentType; label: string }[] = [
@@ -71,14 +71,17 @@ export function ChatView({ chat }: ChatViewProps) {
     [chat.id]
   );
 
+  const streamCitationsRef = useRef<string[]>([]);
+
   const streamResponse = useCallback(
     async (
       apiMessages: Array<{ role: string; content: string }>,
       agent: AgentType,
       signal?: AbortSignal
-    ): Promise<string> => {
+    ): Promise<{ content: string; citations: string[] }> => {
       setStreamingAgent(agent);
       setStreamingContent("");
+      streamCitationsRef.current = [];
       setIsStreaming(true);
 
       try {
@@ -112,6 +115,9 @@ export function ChatView({ chat }: ChatViewProps) {
             if (payload === "[DONE]") continue;
             try {
               const parsed = JSON.parse(payload);
+              if (parsed.type === "citations" && parsed.citations) {
+                streamCitationsRef.current = parsed.citations;
+              }
               if (parsed.type === "text-delta" && parsed.delta) {
                 content += parsed.delta;
                 setStreamingContent(content);
@@ -122,7 +128,7 @@ export function ChatView({ chat }: ChatViewProps) {
           }
         }
 
-        return content;
+        return { content, citations: streamCitationsRef.current };
       } finally {
         setIsStreaming(false);
         setStreamingContent("");
@@ -140,7 +146,7 @@ export function ChatView({ chat }: ChatViewProps) {
 
     try {
       // Market analyst
-      const marketContent = await streamResponse(
+      const marketResult = await streamResponse(
         [{ role: "user", content: "Provide your daily market briefing." }],
         "market-analyst"
       );
@@ -148,13 +154,13 @@ export function ChatView({ chat }: ChatViewProps) {
       const marketMsg: StoredMessage = {
         id: `msg_market_${Date.now()}`,
         role: "assistant",
-        content: marketContent,
-        metadata: { agent: "market-analyst" },
+        content: marketResult.content,
+        metadata: { agent: "market-analyst", citations: marketResult.citations },
       };
       setMessages([marketMsg]);
 
       // Portfolio analyst
-      const portfolioContent = await streamResponse(
+      const portfolioResult = await streamResponse(
         [{ role: "user", content: "Provide your daily portfolio scan." }],
         "portfolio-analyst"
       );
@@ -162,8 +168,8 @@ export function ChatView({ chat }: ChatViewProps) {
       const portfolioMsg: StoredMessage = {
         id: `msg_portfolio_${Date.now()}`,
         role: "assistant",
-        content: portfolioContent,
-        metadata: { agent: "portfolio-analyst" },
+        content: portfolioResult.content,
+        metadata: { agent: "portfolio-analyst", citations: portfolioResult.citations },
       };
 
       const allMessages = [marketMsg, portfolioMsg];
@@ -207,13 +213,13 @@ export function ChatView({ chat }: ChatViewProps) {
     abortRef.current = new AbortController();
 
     try {
-      const content = await streamResponse(apiMessages, agent, abortRef.current.signal);
+      const result = await streamResponse(apiMessages, agent, abortRef.current.signal);
 
       const assistantMsg: StoredMessage = {
         id: `msg_${Date.now()}`,
         role: "assistant",
-        content,
-        metadata: { agent },
+        content: result.content,
+        metadata: { agent, citations: result.citations },
       };
 
       const finalMessages = [...updatedMessages, assistantMsg];
@@ -264,6 +270,7 @@ export function ChatView({ chat }: ChatViewProps) {
               role={message.role}
               content={message.content}
               agent={message.metadata?.agent}
+              citations={message.metadata?.citations}
               instruments={instruments}
             />
           ))}
@@ -273,6 +280,7 @@ export function ChatView({ chat }: ChatViewProps) {
               role="assistant"
               content={streamingContent}
               agent={streamingAgent}
+              citations={streamCitationsRef.current.length > 0 ? streamCitationsRef.current : undefined}
               isStreaming
               instruments={instruments}
             />

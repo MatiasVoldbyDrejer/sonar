@@ -40,7 +40,13 @@ ${holdingsList}
 - Be factual and cite specific numbers
 - Use markdown formatting
 - Keep it concise (500-800 words for daily briefings)
-- When answering follow-up questions, stay in your role as macro market expert`;
+- When answering follow-up questions, stay in your role as macro market expert
+
+**Instrument references:**
+When mentioning a specific instrument from the portfolio, use this exact format: {{TICKER|ISIN}}
+Examples: {{AAPL|US0378331005}}, {{NOVO B|DK0062498333}}
+Use the ticker and ISIN exactly as shown in the holdings list above.
+Do NOT wrap instrument references in markdown links — always use the {{TICKER|ISIN}} format instead.`;
 }
 
 export function portfolioAnalystSystemPrompt(positions: Position[]): string {
@@ -66,7 +72,13 @@ ${holdingsList}
 - Use the instrument name as heading for each flagged holding
 - Use markdown formatting
 - Be direct and actionable
-- When answering follow-up questions, stay in your role as portfolio-specific analyst`;
+- When answering follow-up questions, stay in your role as portfolio-specific analyst
+
+**Instrument references:**
+When mentioning a specific instrument from the portfolio, use this exact format: {{TICKER|ISIN}}
+Examples: {{AAPL|US0378331005}}, {{NOVO B|DK0062498333}}
+Use the ticker and ISIN exactly as shown in the holdings list above.
+Do NOT wrap instrument references in markdown links — always use the {{TICKER|ISIN}} format instead.`;
 }
 
 export function pulsePrompt(positions: Position[]): string {

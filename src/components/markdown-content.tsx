@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import { InstrumentBadge } from "@/components/instrument-badge";
 import type { Instrument } from "@/types";
 import type { Components } from "react-markdown";
+import type { ReactNode } from "react";
 
 interface MarkdownContentProps {
   content: string;
@@ -13,85 +14,75 @@ interface MarkdownContentProps {
 }
 
 /**
- * Build a regex that matches known tickers and ISINs in text.
- * Patterns are sorted longest-first to avoid partial matches.
- * Tickers >= 3 chars are case-insensitive; 2-char tickers are case-sensitive.
+ * Replace {{TICKER|ISIN}} tokens (from AI prompt instructions) with
+ * markdown link syntax: [TICKER](inst://ISIN)
  */
-function buildInstrumentMap(instruments: Instrument[]): {
-  regex: RegExp;
-  lookup: Map<string, Instrument>;
-} {
-  const lookup = new Map<string, Instrument>();
-  const patterns: string[] = [];
-
-  for (const inst of instruments) {
-    // Always match ISIN (12 chars, very specific)
-    if (inst.isin && !lookup.has(inst.isin.toUpperCase())) {
-      lookup.set(inst.isin.toUpperCase(), inst);
-      patterns.push(inst.isin);
-    }
-
-    // Match ticker if >= 2 chars
-    if (inst.ticker && inst.ticker.length >= 2 && !lookup.has(inst.ticker.toUpperCase())) {
-      lookup.set(inst.ticker.toUpperCase(), inst);
-      patterns.push(inst.ticker);
-    }
-
-    // Match Yahoo symbol if different from ticker and >= 2 chars
-    if (
-      inst.yahooSymbol &&
-      inst.yahooSymbol.length >= 2 &&
-      inst.yahooSymbol.toUpperCase() !== inst.ticker?.toUpperCase() &&
-      !lookup.has(inst.yahooSymbol.toUpperCase())
-    ) {
-      lookup.set(inst.yahooSymbol.toUpperCase(), inst);
-      patterns.push(inst.yahooSymbol);
-    }
-  }
-
-  if (patterns.length === 0) {
-    return { regex: /(?!)/g, lookup }; // never-matching regex
-  }
-
-  // Sort longest first
-  patterns.sort((a, b) => b.length - a.length);
-
-  // Escape special regex characters and join with |
-  const escaped = patterns.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const regex = new RegExp(`(?<=^|[\\s(,])(?:${escaped.join("|")})(?=[\\s),.:;!?]|$)`, "gi");
-
-  return { regex, lookup };
+function replaceInstrumentTokens(content: string): string {
+  return content.replace(
+    /\{\{([^}|]+)\|([A-Z0-9]{12})\}\}/g,
+    (_match, ticker, isin) => `[${ticker}](inst://${isin})`
+  );
 }
 
 /**
- * Annotate markdown content by replacing known tickers/ISINs with
- * custom link syntax: [AAPL](inst://US0378331005)
+ * Build a lookup map from ticker/ISIN/yahooSymbol → Instrument
  */
-function annotateInstruments(
-  content: string,
-  instruments: Instrument[]
-): string {
-  if (instruments.length === 0) return content;
+function buildIdentifierMap(instruments: Instrument[]): Map<string, Instrument> {
+  const map = new Map<string, Instrument>();
+  for (const inst of instruments) {
+    if (inst.isin) map.set(inst.isin.toUpperCase(), inst);
+    if (inst.ticker && inst.ticker.length >= 2) map.set(inst.ticker.toUpperCase(), inst);
+    if (inst.yahooSymbol && inst.yahooSymbol.length >= 2 && inst.yahooSymbol !== inst.ticker) {
+      map.set(inst.yahooSymbol.toUpperCase(), inst);
+    }
+  }
+  return map;
+}
 
-  const { regex, lookup } = buildInstrumentMap(instruments);
+/**
+ * Annotate plain-text tickers/ISINs in markdown content by replacing them
+ * with custom link syntax: [AAPL](inst://US0378331005).
+ * Skips text inside existing markdown links or code blocks.
+ */
+function annotateInstruments(content: string, identifierMap: Map<string, Instrument>): string {
+  if (identifierMap.size === 0) return content;
 
-  // Don't replace inside existing markdown links [text](url) or code blocks
-  // Split content by markdown link patterns and code blocks to protect them
+  const patterns = [...identifierMap.keys()];
+  patterns.sort((a, b) => b.length - a.length);
+
+  const escaped = patterns.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const regex = new RegExp(`(?<=^|[\\s(,*_])(?:${escaped.join("|")})(?=[\\s),.:;!?*_\\]]|$)`, "gi");
+
+  // Don't replace inside existing markdown links or code blocks
   const protectedPattern = /(\[(?:[^\]]*)\]\([^)]*\)|`[^`]*`|```[\s\S]*?```)/g;
   const segments = content.split(protectedPattern);
 
   return segments
     .map((segment, i) => {
-      // Odd indices are protected patterns (links, code) — leave them alone
+      // Odd indices are protected (links, code) — leave them alone
       if (i % 2 === 1) return segment;
 
       return segment.replace(regex, (match) => {
-        const inst = lookup.get(match.toUpperCase());
+        const inst = identifierMap.get(match.toUpperCase());
         if (!inst) return match;
         return `[${match}](inst://${inst.isin})`;
       });
     })
     .join("");
+}
+
+/**
+ * Extract plain text content from React children (for matching link text
+ * against known tickers).
+ */
+function getTextContent(node: ReactNode): string {
+  if (typeof node === "string") return node;
+  if (typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(getTextContent).join("");
+  if (node && typeof node === "object" && "props" in node) {
+    return getTextContent((node as any).props.children);
+  }
+  return "";
 }
 
 export function MarkdownContent({ content, citations, instruments }: MarkdownContentProps) {
@@ -107,18 +98,25 @@ export function MarkdownContent({ content, citations, instruments }: MarkdownCon
     });
   }
 
-  // Annotate instrument references
+  // Replace {{TICKER|ISIN}} tokens with inst:// links
+  processedContent = replaceInstrumentTokens(processedContent);
+
+  // Build identifier lookup (ticker/ISIN/yahooSymbol → Instrument)
+  const identifierMap = instruments ? buildIdentifierMap(instruments) : new Map<string, Instrument>();
+
+  // Annotate remaining plain-text tickers with inst:// links
   if (instruments && instruments.length > 0) {
-    processedContent = annotateInstruments(processedContent, instruments);
+    processedContent = annotateInstruments(processedContent, identifierMap);
   }
 
-  // Build instrument lookup for the custom link renderer
+  // Build ISIN-only lookup for inst:// link rendering
   const instrumentByIsin = instruments
     ? new Map(instruments.map((i) => [i.isin, i]))
     : new Map<string, Instrument>();
 
   const components: Components = {
     a: ({ href, children, ...props }) => {
+      // Explicit inst:// links (from token replacement or text annotation)
       if (href?.startsWith("inst://")) {
         const isin = href.slice(7);
         const inst = instrumentByIsin.get(isin);
@@ -127,7 +125,22 @@ export function MarkdownContent({ content, citations, instruments }: MarkdownCon
             <InstrumentBadge instrument={inst} className="text-primary" />
           );
         }
+        // Unknown ISIN — render as plain text, not a broken link
+        return <>{children}</>;
       }
+
+      // Check if the link text matches a known ticker/ISIN
+      // (catches AI-generated links like [AAPL](https://finance.yahoo.com/...))
+      const text = getTextContent(children).trim();
+      if (text) {
+        const inst = identifierMap.get(text.toUpperCase());
+        if (inst) {
+          return (
+            <InstrumentBadge instrument={inst} className="text-primary" />
+          );
+        }
+      }
+
       return (
         <a href={href} {...props}>
           {children}

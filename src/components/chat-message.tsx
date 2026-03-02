@@ -20,11 +20,12 @@ interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
   agent?: AgentType;
+  citations?: string[];
   isStreaming?: boolean;
   instruments?: Instrument[];
 }
 
-export function ChatMessage({ role, content, agent, isStreaming, instruments }: ChatMessageProps) {
+export function ChatMessage({ role, content, agent, citations, isStreaming, instruments }: ChatMessageProps) {
   if (role === "user") {
     return (
       <div className="border-l-2 border-primary pl-4 py-1">
@@ -47,7 +48,7 @@ export function ChatMessage({ role, content, agent, isStreaming, instruments }: 
       <div className={cn("border-t border-border pt-3")}>
         {content ? (
           <div className={isStreaming ? "blink-cursor" : undefined}>
-            <MarkdownContent content={content} instruments={instruments} />
+            <MarkdownContent content={content} citations={citations} instruments={instruments} />
           </div>
         ) : (
           <span className="blink-cursor text-sm text-muted-foreground" />
