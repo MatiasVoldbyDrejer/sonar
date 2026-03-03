@@ -16,7 +16,6 @@ import { MarkdownContent } from "@/components/markdown-content";
 import { PriceChart } from "@/components/price-chart";
 import { InstrumentSkeleton } from "@/components/skeleton-shimmer";
 import { InstrumentBadge } from "@/components/instrument-badge";
-import { cn, gainLossColor } from "@/lib/utils";
 import type { Instrument, Transaction, Position, InstrumentStats, Quote } from "@/types";
 import Link from "next/link";
 
@@ -38,6 +37,12 @@ function formatNumber(value: number | null): string {
   if (value >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
   if (value >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
   return value.toLocaleString("da-DK");
+}
+
+function glColor(value: number): string {
+  if (value > 0) return "var(--gain)";
+  if (value < 0) return "var(--loss)";
+  return "var(--foreground)";
 }
 
 interface AnalysisData {
@@ -131,9 +136,9 @@ export function InstrumentDetail({ isin }: { isin: string }) {
 
   if (!instrument) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-muted-foreground">Instrument not found.</p>
-        <Link href="/" className="text-primary hover:underline mt-2 inline-block">
+      <div style={{ paddingTop: 48, paddingBottom: 48, textAlign: "center" }}>
+        <p style={{ color: "var(--muted-foreground)" }}>Instrument not found.</p>
+        <Link href="/" style={{ color: "var(--primary)", marginTop: 8, display: "inline-block", textDecoration: "none" }} data-hover="link">
           Back to dashboard
         </Link>
       </div>
@@ -158,48 +163,49 @@ export function InstrumentDetail({ isin }: { isin: string }) {
   );
 
   return (
-    <div className="space-y-6">
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <div>
-          <div className="flex items-center gap-2">
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Link
               href="/"
-              className="text-muted-foreground hover:text-foreground text-sm"
+              style={{ color: "var(--muted-foreground)", fontSize: 14, textDecoration: "none" }}
+              data-hover="text-btn"
             >
               Portfolio
             </Link>
-            <span className="text-muted-foreground">/</span>
+            <span style={{ color: "var(--muted-foreground)" }}>/</span>
           </div>
-          <div className="flex items-center gap-3 mt-1">
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4 }}>
             <InstrumentBadge instrument={instrument} showName={false} linked={false} size="lg" />
-            <h1 className="text-2xl font-semibold">{instrument.name}</h1>
+            <h1 style={{ fontSize: "1.5rem", fontWeight: 600 }}>{instrument.name}</h1>
           </div>
-          <div className="flex items-center gap-2 mt-1">
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
             <Badge variant="outline">{instrument.type.toUpperCase()}</Badge>
             {instrument.ticker && (
-              <span className="text-sm text-muted-foreground">
+              <span style={{ fontSize: 14, color: "var(--muted-foreground)" }}>
                 {instrument.ticker}
               </span>
             )}
-            <span className="text-sm text-muted-foreground">
+            <span style={{ fontSize: 14, color: "var(--muted-foreground)" }}>
               {instrument.isin}
             </span>
-            <span className="text-sm text-muted-foreground">
+            <span style={{ fontSize: 14, color: "var(--muted-foreground)" }}>
               {instrument.currency}
             </span>
           </div>
         </div>
         {quote && (
-          <div className="text-right">
-            <div className="text-3xl font-semibold tabular-nums">
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: "1.875rem", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
               {formatCurrency(quote.price, quote.currency)}
             </div>
-            <div className={cn("tabular-nums", gainLossColor(quote.change))}>
+            <div style={{ fontVariantNumeric: "tabular-nums", color: glColor(quote.change) }}>
               {quote.change >= 0 ? "+" : ""}
               {quote.change.toFixed(2)} ({quote.changePercent.toFixed(2)}%)
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
+            <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 4 }}>
               {quote.marketState === "REGULAR" ? "Market Open" : "Market Closed"}
             </div>
           </div>
@@ -207,38 +213,38 @@ export function InstrumentDetail({ isin }: { isin: string }) {
       </div>
 
       {/* Position Summary + Stats */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 350px), 1fr))" }}>
         {totalPosition.quantity > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              <CardTitle style={{ fontSize: 14, fontWeight: 500, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 Your Position (DKK)
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Shares</span>
-                <span className="tabular-nums">{totalPosition.quantity.toFixed(totalPosition.quantity % 1 === 0 ? 0 : 4)}</span>
+            <CardContent style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--muted-foreground)" }}>Shares</span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>{totalPosition.quantity.toFixed(totalPosition.quantity % 1 === 0 ? 0 : 4)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Cost Basis</span>
-                <span className="tabular-nums">{formatDKK(totalPosition.costBasis)}</span>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--muted-foreground)" }}>Cost Basis</span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>{formatDKK(totalPosition.costBasis)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Market Value</span>
-                <span className="tabular-nums">{formatDKK(totalPosition.currentValue)}</span>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--muted-foreground)" }}>Market Value</span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>{formatDKK(totalPosition.currentValue)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Unrealized P/L</span>
-                <span className={cn("tabular-nums", gainLossColor(totalPosition.unrealizedGainLoss))}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--muted-foreground)" }}>Unrealized P/L</span>
+                <span style={{ fontVariantNumeric: "tabular-nums", color: glColor(totalPosition.unrealizedGainLoss) }}>
                   {formatDKK(totalPosition.unrealizedGainLoss)}
                   {totalPosition.costBasis > 0 &&
                     ` (${((totalPosition.unrealizedGainLoss / totalPosition.costBasis) * 100).toFixed(2)}%)`}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Realized P/L</span>
-                <span className={cn("tabular-nums", gainLossColor(totalPosition.realizedGainLoss))}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--muted-foreground)" }}>Realized P/L</span>
+                <span style={{ fontVariantNumeric: "tabular-nums", color: glColor(totalPosition.realizedGainLoss) }}>
                   {formatDKK(totalPosition.realizedGainLoss)}
                 </span>
               </div>
@@ -249,42 +255,42 @@ export function InstrumentDetail({ isin }: { isin: string }) {
         {stats && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              <CardTitle style={{ fontSize: 14, fontWeight: 500, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 Key Stats
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Previous Close</span>
-                <span className="tabular-nums">{stats.previousClose != null ? formatCurrency(stats.previousClose, instrument.currency) : "—"}</span>
+            <CardContent style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--muted-foreground)" }}>Previous Close</span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>{stats.previousClose != null ? formatCurrency(stats.previousClose, instrument.currency) : "—"}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Day Range</span>
-                <span className="tabular-nums">
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--muted-foreground)" }}>Day Range</span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>
                   {stats.dayLow != null && stats.dayHigh != null
                     ? `${stats.dayLow.toFixed(2)} – ${stats.dayHigh.toFixed(2)}`
                     : "—"}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">52W Range</span>
-                <span className="tabular-nums">
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--muted-foreground)" }}>52W Range</span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>
                   {stats.fiftyTwoWeekLow != null && stats.fiftyTwoWeekHigh != null
                     ? `${stats.fiftyTwoWeekLow.toFixed(2)} – ${stats.fiftyTwoWeekHigh.toFixed(2)}`
                     : "—"}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Market Cap</span>
-                <span className="tabular-nums">{formatNumber(stats.marketCap)}</span>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--muted-foreground)" }}>Market Cap</span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>{formatNumber(stats.marketCap)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">P/E Ratio</span>
-                <span className="tabular-nums">{stats.peRatio != null ? stats.peRatio.toFixed(2) : "—"}</span>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--muted-foreground)" }}>P/E Ratio</span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>{stats.peRatio != null ? stats.peRatio.toFixed(2) : "—"}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Dividend Yield</span>
-                <span className="tabular-nums">{stats.dividendYield != null ? `${(stats.dividendYield * 100).toFixed(2)}%` : "—"}</span>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--muted-foreground)" }}>Dividend Yield</span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>{stats.dividendYield != null ? `${(stats.dividendYield * 100).toFixed(2)}%` : "—"}</span>
               </div>
             </CardContent>
           </Card>
@@ -297,17 +303,17 @@ export function InstrumentDetail({ isin }: { isin: string }) {
       )}
 
       {/* AI Analysis */}
-      <div className="pt-4">
+      <div style={{ paddingTop: 16 }}>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+            <CardTitle style={{ fontSize: 14, fontWeight: 500, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               AI Analysis
             </CardTitle>
           </CardHeader>
           <CardContent>
             {!analysis ? (
-              <div className="text-center py-6">
-                <p className="text-muted-foreground mb-3">
+              <div style={{ textAlign: "center", paddingTop: 24, paddingBottom: 24 }}>
+                <p style={{ color: "var(--muted-foreground)", marginBottom: 12 }}>
                   Get a comprehensive AI-powered analysis of this instrument.
                 </p>
                 <Button onClick={fetchAnalysis} disabled={loadingAnalysis}>
@@ -316,11 +322,11 @@ export function InstrumentDetail({ isin }: { isin: string }) {
               </div>
             ) : (
               <div>
-                <div className="flex items-center gap-2 mb-3">
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                   {analysis.cached && (
                     <Badge variant="secondary">Cached</Badge>
                   )}
-                  <span className="text-xs text-muted-foreground">
+                  <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
                     Generated{" "}
                     {new Date(analysis.createdAt).toLocaleString("da-DK")}
                   </span>
@@ -346,13 +352,13 @@ export function InstrumentDetail({ isin }: { isin: string }) {
       {/* Transaction History */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          <CardTitle style={{ fontSize: 14, fontWeight: 500, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
             Transaction History
           </CardTitle>
         </CardHeader>
         <CardContent>
           {transactions.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">
+            <p style={{ color: "var(--muted-foreground)", textAlign: "center", paddingTop: 16, paddingBottom: 16 }}>
               No transactions recorded.
             </p>
           ) : (
@@ -361,12 +367,12 @@ export function InstrumentDetail({ isin }: { isin: string }) {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
-                  <TableHead className="text-right">
+                  <TableHead style={{ textAlign: "right" }}>Qty</TableHead>
+                  <TableHead style={{ textAlign: "right" }}>
                     Price ({instrument.currency})
                   </TableHead>
-                  <TableHead className="text-right">Fee</TableHead>
-                  <TableHead className="text-right">
+                  <TableHead style={{ textAlign: "right" }}>Fee</TableHead>
+                  <TableHead style={{ textAlign: "right" }}>
                     Total ({instrument.currency})
                   </TableHead>
                   <TableHead>Notes</TableHead>
@@ -383,21 +389,21 @@ export function InstrumentDetail({ isin }: { isin: string }) {
                           {tx.type.toUpperCase()}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                         {tx.quantity.toFixed(tx.quantity % 1 === 0 ? 0 : 4)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                         {formatCurrency(tx.price, instrument.currency)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                         {tx.fee > 0
                           ? formatCurrency(tx.fee, tx.feeCurrency || instrument.currency)
                           : "—"}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                         {formatCurrency(tx.quantity * tx.price, instrument.currency)}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
+                      <TableCell style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
                         {tx.notes || ""}
                       </TableCell>
                     </TableRow>

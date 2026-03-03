@@ -72,8 +72,8 @@ export function SettingsPage() {
   }, [fetchData]);
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <h1 style={{ fontSize: "1.5rem", fontWeight: 600, letterSpacing: "-0.025em" }}>Settings</h1>
       <Tabs defaultValue="instruments">
         <TabsList>
           <TabsTrigger value="instruments">Instruments</TabsTrigger>
@@ -82,14 +82,14 @@ export function SettingsPage() {
           <TabsTrigger value="accounts">Accounts</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="instruments" className="mt-4">
+        <TabsContent value="instruments" style={{ marginTop: 16 }}>
           <InstrumentsTab
             instruments={instruments}
             onRefresh={fetchData}
           />
         </TabsContent>
 
-        <TabsContent value="transactions" className="mt-4">
+        <TabsContent value="transactions" style={{ marginTop: 16 }}>
           <TransactionsTab
             transactions={transactions}
             instruments={instruments}
@@ -98,11 +98,11 @@ export function SettingsPage() {
           />
         </TabsContent>
 
-        <TabsContent value="import" className="mt-4">
+        <TabsContent value="import" style={{ marginTop: 16 }}>
           <ImportTab accounts={accounts} onRefresh={fetchData} />
         </TabsContent>
 
-        <TabsContent value="accounts" className="mt-4">
+        <TabsContent value="accounts" style={{ marginTop: 16 }}>
           <AccountsTab accounts={accounts} onRefresh={fetchData} loading={loading} />
         </TabsContent>
       </Tabs>
@@ -124,13 +124,13 @@ function InstrumentsTab({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
         <CardTitle>Instruments</CardTitle>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button size="sm">Add Instrument</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent style={{ maxWidth: 512 }}>
             <DialogHeader>
               <DialogTitle>Add Instrument</DialogTitle>
             </DialogHeader>
@@ -145,7 +145,7 @@ function InstrumentsTab({
       </CardHeader>
       <CardContent>
         {instruments.length === 0 ? (
-          <p className="text-muted-foreground text-center py-4">
+          <p style={{ color: "var(--muted-foreground)", textAlign: "center", paddingTop: 16, paddingBottom: 16 }}>
             No instruments. Add one to get started.
           </p>
         ) : (
@@ -164,29 +164,29 @@ function InstrumentsTab({
             <TableBody>
               {instruments.map((inst) => (
                 <TableRow key={inst.id}>
-                  <TableCell className="font-medium">
+                  <TableCell style={{ fontWeight: 500 }}>
                     <InstrumentBadge instrument={inst} linked={false}>
                       {inst.name}
                     </InstrumentBadge>
                   </TableCell>
-                  <TableCell className="font-mono text-xs">{inst.isin}</TableCell>
+                  <TableCell style={{ fontFamily: "var(--font-mono, ui-monospace, monospace)", fontSize: "0.75rem" }}>{inst.isin}</TableCell>
                   <TableCell>{inst.ticker || "—"}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{inst.type}</Badge>
                   </TableCell>
                   <TableCell>{inst.currency}</TableCell>
-                  <TableCell className="text-xs">
+                  <TableCell style={{ fontSize: "0.75rem" }}>
                     {inst.yahooSymbol ? (
-                      <span className="text-muted-foreground">{inst.yahooSymbol}</span>
+                      <span style={{ color: "var(--muted-foreground)" }}>{inst.yahooSymbol}</span>
                     ) : (
-                      <span className="text-yellow-500/80 inline-flex items-center gap-1">
-                        <AlertTriangle className="h-3 w-3" />
+                      <span style={{ color: "rgba(234, 179, 8, 0.8)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <AlertTriangle style={{ height: 12, width: 12 }} />
                         Missing
                       </span>
                     )}
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-1">
+                    <div style={{ display: "flex", gap: 4 }}>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -197,7 +197,7 @@ function InstrumentsTab({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-destructive"
+                        style={{ color: "var(--destructive)" }}
                         onClick={async () => {
                           const res = await fetch(`/api/instruments/${inst.id}`, {
                             method: "DELETE",
@@ -224,7 +224,7 @@ function InstrumentsTab({
 
       {/* Edit Instrument Dialog */}
       <Dialog open={!!editingInstrument} onOpenChange={(open) => !open && setEditingInstrument(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent style={{ maxWidth: 512 }}>
           <DialogHeader>
             <DialogTitle>Edit Instrument</DialogTitle>
           </DialogHeader>
@@ -322,9 +322,9 @@ function AddInstrumentForm({ onSuccess }: { onSuccess: () => void }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="flex gap-2">
-        <div className="flex-1">
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ flex: 1 }}>
           <Label htmlFor="isin">ISIN</Label>
           <Input
             id="isin"
@@ -335,7 +335,7 @@ function AddInstrumentForm({ onSuccess }: { onSuccess: () => void }) {
             required
           />
         </div>
-        <div className="flex items-end">
+        <div style={{ display: "flex", alignItems: "flex-end" }}>
           <Button
             type="button"
             variant="outline"
@@ -348,20 +348,21 @@ function AddInstrumentForm({ onSuccess }: { onSuccess: () => void }) {
       </div>
 
       {searchResults.length > 0 && (
-        <div className="border rounded-md p-2 space-y-1 max-h-40 overflow-y-auto">
-          <p className="text-xs text-muted-foreground mb-1">
+        <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: 8, display: "flex", flexDirection: "column", gap: 4, maxHeight: 160, overflowY: "auto" }}>
+          <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)", marginBottom: 4 }}>
             Select a match:
           </p>
           {searchResults.map((r, i) => (
             <button
               key={i}
               type="button"
-              className="w-full text-left px-2 py-1 rounded text-sm hover:bg-muted"
+              style={{ width: "100%", textAlign: "left", paddingLeft: 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4, borderRadius: "var(--radius-md)", fontSize: "0.875rem", background: "transparent", border: "none", cursor: "pointer", color: "inherit" }}
+              data-hover="search-result"
               onClick={() => selectResult(r)}
             >
-              <span className="font-medium">{r.symbol}</span>
-              <span className="text-muted-foreground ml-2">{r.name}</span>
-              <span className="text-muted-foreground ml-2 text-xs">
+              <span style={{ fontWeight: 500 }}>{r.symbol}</span>
+              <span style={{ color: "var(--muted-foreground)", marginLeft: 8 }}>{r.name}</span>
+              <span style={{ color: "var(--muted-foreground)", marginLeft: 8, fontSize: "0.75rem" }}>
                 {r.exchange}
               </span>
             </button>
@@ -380,7 +381,7 @@ function AddInstrumentForm({ onSuccess }: { onSuccess: () => void }) {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <div>
           <Label htmlFor="ticker">Ticker</Label>
           <Input
@@ -401,7 +402,7 @@ function AddInstrumentForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
         <div>
           <Label>Type</Label>
           <Select value={type} onValueChange={setType}>
@@ -437,7 +438,7 @@ function AddInstrumentForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
       </div>
 
-      <Button type="submit" className="w-full">
+      <Button type="submit" style={{ width: "100%" }}>
         Add Instrument
       </Button>
     </form>
@@ -464,7 +465,7 @@ function TransactionsTab({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
         <CardTitle>Transactions</CardTitle>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -487,7 +488,7 @@ function TransactionsTab({
       </CardHeader>
       <CardContent>
         {transactions.length === 0 ? (
-          <p className="text-muted-foreground text-center py-4">
+          <p style={{ color: "var(--muted-foreground)", textAlign: "center", paddingTop: 16, paddingBottom: 16 }}>
             No transactions. Add one or import from CSV/XLSX.
           </p>
         ) : (
@@ -497,9 +498,9 @@ function TransactionsTab({
                 <TableHead>Date</TableHead>
                 <TableHead>Instrument</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead className="text-right">Qty</TableHead>
-                <TableHead className="text-right">Price</TableHead>
-                <TableHead className="text-right">Fee</TableHead>
+                <TableHead style={{ textAlign: "right" }}>Qty</TableHead>
+                <TableHead style={{ textAlign: "right" }}>Price</TableHead>
+                <TableHead style={{ textAlign: "right" }}>Fee</TableHead>
                 <TableHead>Account</TableHead>
                 <TableHead></TableHead>
               </TableRow>
@@ -525,15 +526,15 @@ function TransactionsTab({
                         {tx.type.toUpperCase()}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell style={{ textAlign: "right" }}>
                       {tx.quantity.toFixed(tx.quantity % 1 === 0 ? 0 : 4)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell style={{ textAlign: "right" }}>
                       {inst
                         ? formatCurrency(tx.price, inst.currency)
                         : tx.price.toFixed(2)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell style={{ textAlign: "right" }}>
                       {tx.fee > 0
                         ? tx.fee.toFixed(2)
                         : "—"}
@@ -547,7 +548,7 @@ function TransactionsTab({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-destructive"
+                        style={{ color: "var(--destructive)" }}
                         onClick={async () => {
                           const res = await fetch(
                             `/api/transactions/${tx.id}`,
@@ -629,7 +630,7 @@ function AddTransactionForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
         <Label>Account</Label>
         <Select value={accountId} onValueChange={setAccountId} required>
@@ -662,7 +663,7 @@ function AddTransactionForm({
         </Select>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <div>
           <Label>Type</Label>
           <Select value={type} onValueChange={setType}>
@@ -687,7 +688,7 @@ function AddTransactionForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <div>
           <Label htmlFor="quantity">Quantity</Label>
           <Input
@@ -712,8 +713,8 @@ function AddTransactionForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+        <div style={{ gridColumn: "span 2" }}>
           <Label htmlFor="fee">Fee</Label>
           <Input
             id="fee"
@@ -745,7 +746,7 @@ function AddTransactionForm({
         />
       </div>
 
-      <Button type="submit" className="w-full">
+      <Button type="submit" style={{ width: "100%" }}>
         Add Transaction
       </Button>
     </form>
@@ -842,12 +843,12 @@ function ImportTab({
       <CardHeader>
         <CardTitle>Import Transactions</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
+      <CardContent style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <p style={{ fontSize: "0.875rem", color: "var(--muted-foreground)" }}>
           Import transaction history from Nordnet (CSV) or Saxo Invest (XLSX).
         </p>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <div>
             <Label>Account</Label>
             <Select value={accountId} onValueChange={setAccountId}>
@@ -874,7 +875,7 @@ function ImportTab({
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div style={{ display: "flex", gap: 8 }}>
           <Button
             onClick={handlePreview}
             variant="outline"
@@ -892,7 +893,7 @@ function ImportTab({
         </div>
 
         {preview && preview.length > 0 && (
-          <div className="max-h-96 overflow-auto">
+          <div style={{ maxHeight: 384, overflow: "auto" }}>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -900,9 +901,9 @@ function ImportTab({
                   <TableHead>Type</TableHead>
                   <TableHead>ISIN</TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  <TableHead className="text-right">Fee</TableHead>
+                  <TableHead style={{ textAlign: "right" }}>Qty</TableHead>
+                  <TableHead style={{ textAlign: "right" }}>Price</TableHead>
+                  <TableHead style={{ textAlign: "right" }}>Fee</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -914,17 +915,17 @@ function ImportTab({
                         {tx.type.toUpperCase()}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">
+                    <TableCell style={{ fontFamily: "var(--font-mono, ui-monospace, monospace)", fontSize: "0.75rem" }}>
                       {tx.isin}
                     </TableCell>
                     <TableCell>{tx.name}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell style={{ textAlign: "right" }}>
                       {tx.quantity.toFixed(2)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell style={{ textAlign: "right" }}>
                       {tx.price.toFixed(2)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell style={{ textAlign: "right" }}>
                       {tx.fee.toFixed(2)}
                     </TableCell>
                   </TableRow>
@@ -978,9 +979,9 @@ function AccountsTab({
       <CardHeader>
         <CardTitle>Accounts</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {loading ? (
-          <p className="text-muted-foreground">Loading...</p>
+          <p style={{ color: "var(--muted-foreground)" }}>Loading...</p>
         ) : (
           <Table>
             <TableHeader>
@@ -992,7 +993,7 @@ function AccountsTab({
             <TableBody>
               {accounts.map((acc) => (
                 <TableRow key={acc.id}>
-                  <TableCell className="font-medium">{acc.name}</TableCell>
+                  <TableCell style={{ fontWeight: 500 }}>{acc.name}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{acc.broker}</Badge>
                   </TableCell>
@@ -1002,8 +1003,8 @@ function AccountsTab({
           </Table>
         )}
 
-        <form onSubmit={handleAdd} className="flex gap-2 items-end">
-          <div className="flex-1">
+        <form onSubmit={handleAdd} style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+          <div style={{ flex: 1 }}>
             <Label htmlFor="acc-name">Account Name</Label>
             <Input
               id="acc-name"
@@ -1016,7 +1017,7 @@ function AccountsTab({
           <div>
             <Label>Broker</Label>
             <Select value={broker} onValueChange={setBroker}>
-              <SelectTrigger className="w-32">
+              <SelectTrigger style={{ width: 128 }}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

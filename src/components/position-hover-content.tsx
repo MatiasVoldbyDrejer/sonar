@@ -1,7 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn, formatDKK, formatPercent, gainLossColor } from "@/lib/utils";
+import { formatDKK, formatPercent } from "@/lib/utils";
 import Link from "next/link";
 import type { Position } from "@/types";
 
@@ -46,50 +46,51 @@ export function PositionHoverContent({ instrument, positions }: PositionHoverCon
     .join(" · ");
 
   return (
-    <div className="space-y-3">
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
       {/* Header */}
-      <div className="flex items-center gap-2.5">
+      <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
         <Avatar className="h-8 w-8">
           <AvatarImage src={getLogoUrl(instrument.yahooSymbol)} alt={instrument.name} />
           <AvatarFallback className="text-[10px] font-medium bg-muted">
             {getInitials(instrument.name, instrument.ticker)}
           </AvatarFallback>
         </Avatar>
-        <div className="min-w-0">
-          <p className="text-sm font-medium leading-tight truncate">{instrument.name}</p>
+        <div style={{ minWidth: 0 }}>
+          <p style={{ fontSize: "0.875rem", fontWeight: 500, lineHeight: "tight", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{instrument.name}</p>
           {meta && (
-            <p className="text-xs text-muted-foreground">{meta}</p>
+            <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>{meta}</p>
           )}
         </div>
       </div>
 
       {/* Position data */}
       {hasActive ? (
-        <div className="space-y-1.5 text-xs">
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", fontSize: "0.75rem" }}>
           <Row label="Qty" value={`${totalQty.toFixed(totalQty % 1 === 0 ? 0 : 4)} shares`} />
           <Row label="Value" value={formatDKK(totalValue)} />
           <Row label="Cost basis" value={formatDKK(totalCost)} />
           <Row
             label="P/L"
             value={`${formatDKK(totalPL)} (${formatPercent(plPct)})`}
-            className={gainLossColor(totalPL)}
+            style={{ color: totalPL >= 0 ? "var(--gain)" : "var(--loss)" }}
           />
           {totalDay !== 0 && (
             <Row
               label="Today"
               value={`${totalDay >= 0 ? "+" : ""}${formatDKK(totalDay)}`}
-              className={gainLossColor(totalDay)}
+              style={{ color: totalDay >= 0 ? "var(--gain)" : "var(--loss)" }}
             />
           )}
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">No active position</p>
+        <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>No active position</p>
       )}
 
       {/* Link */}
       <Link
         href={`/instrument/${instrument.isin}`}
-        className="text-xs text-primary hover:underline inline-block"
+        style={{ fontSize: "0.75rem", color: "var(--primary)", display: "inline-block", textDecoration: "none" }}
+        data-hover="link"
       >
         View details &rarr;
       </Link>
@@ -100,16 +101,16 @@ export function PositionHoverContent({ instrument, positions }: PositionHoverCon
 function Row({
   label,
   value,
-  className,
+  style,
 }: {
   label: string;
   value: string;
-  className?: string;
+  style?: React.CSSProperties;
 }) {
   return (
-    <div className="flex justify-between gap-4">
-      <span className="text-muted-foreground">{label}</span>
-      <span className={cn("tabular-nums font-mono text-right", className)}>{value}</span>
+    <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
+      <span style={{ color: "var(--muted-foreground)" }}>{label}</span>
+      <span style={{ fontVariantNumeric: "tabular-nums", fontFamily: "var(--font-mono, ui-monospace, monospace)", textAlign: "right", ...style }}>{value}</span>
     </div>
   );
 }

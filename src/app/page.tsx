@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 export default function Home() {
   return (
-    <div className="container mx-auto max-w-7xl p-6">
+    <div style={{ maxWidth: 1280, margin: "0 auto", padding: 24 }}>
       <Dashboard />
     </div>
   );

@@ -16,7 +16,7 @@ import {
 import { ChevronDown, ChevronUp, ChevronsUpDown, ChevronRight } from "lucide-react";
 import type { Position, Account } from "@/types";
 import Link from "next/link";
-import { cn, formatDKK, formatPercent, gainLossColor, portfolioWeight } from "@/lib/utils";
+import { formatDKK, formatPercent, portfolioWeight } from "@/lib/utils";
 import { fadeIn } from "@/lib/motion";
 import { AnimatedNumber } from "@/components/animated-number";
 import { Sparkline } from "@/components/sparkline";
@@ -26,6 +26,12 @@ import { PortfolioChart } from "@/components/portfolio-chart";
 import { InstrumentBadge } from "@/components/instrument-badge";
 
 type SortKey = 'name' | 'value' | 'dayChange' | 'unrealizedGainLoss' | 'weight';
+
+function glColor(value: number): string {
+  if (value > 0) return "var(--gain)";
+  if (value < 0) return "var(--loss)";
+  return "var(--muted-foreground)";
+}
 
 function SortableHead({
   label,
@@ -46,16 +52,35 @@ function SortableHead({
     : ChevronsUpDown;
 
   return (
-    <TableHead className={align === 'right' ? 'text-right' : ''}>
+    <TableHead style={align === 'right' ? { textAlign: 'right' } : undefined}>
       <button
-        className={cn(
-          "inline-flex items-center gap-1 hover:text-foreground transition-colors -my-1",
-          align === 'right' && "flex-row-reverse ml-auto"
-        )}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+          transition: "color 0.15s",
+          marginTop: -4,
+          marginBottom: -4,
+          background: "none",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+          color: "inherit",
+          font: "inherit",
+          ...(align === 'right' ? { flexDirection: "row-reverse", marginLeft: "auto" } : {}),
+        }}
+        data-hover="sort-btn"
         onClick={() => onSort(sortKey)}
       >
         {label}
-        <Icon className={cn("h-3 w-3 shrink-0", isActive ? "text-foreground" : "text-muted-foreground/50")} />
+        <Icon
+          style={{
+            height: 12,
+            width: 12,
+            flexShrink: 0,
+            color: isActive ? "var(--foreground)" : "color-mix(in srgb, var(--muted-foreground) 50%, transparent)",
+          }}
+        />
       </button>
     </TableHead>
   );
@@ -166,43 +191,50 @@ export function Dashboard() {
   }
 
   return (
-    <motion.div className="space-y-6" {...fadeIn}>
+    <motion.div style={{ display: "flex", flexDirection: "column", gap: 24 }} {...fadeIn}>
       {/* Hero Section */}
       {allActivePositions.length > 0 ? (
         <div>
-          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-1">
+          <p style={{
+            fontSize: 14,
+            fontWeight: 500,
+            color: "var(--muted-foreground)",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            marginBottom: 4,
+          }}>
             Portfolio
           </p>
           <AnimatedNumber
             value={totalValue}
-            className="text-5xl font-semibold tracking-tight tabular-nums"
+            style={{ fontSize: 48, fontWeight: 600, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums" }}
           />
-          <div className="flex items-baseline gap-3 mt-1">
-            <span className={cn("text-lg tabular-nums", gainLossColor(totalGainLoss))}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginTop: 4 }}>
+            <span style={{ fontSize: 18, fontVariantNumeric: "tabular-nums", color: glColor(totalGainLoss) }}>
               {formatDKK(totalGainLoss)} ({formatPercent(totalPct)})
             </span>
             {totalDayChange !== 0 && (
-              <span className={cn("text-sm tabular-nums", gainLossColor(totalDayChange))}>
+              <span style={{ fontSize: 14, fontVariantNumeric: "tabular-nums", color: glColor(totalDayChange) }}>
                 Today {totalDayChange >= 0 ? "+" : ""}{formatDKK(totalDayChange)}
               </span>
             )}
           </div>
           {totalRealized !== 0 && (
-            <p className="text-xs mt-1">
-              <span className="text-muted-foreground">Realized </span>
-              <span className={cn("tabular-nums", gainLossColor(totalRealized))}>
+            <p style={{ fontSize: 12, marginTop: 4 }}>
+              <span style={{ color: "var(--muted-foreground)" }}>Realized </span>
+              <span style={{ fontVariantNumeric: "tabular-nums", color: glColor(totalRealized) }}>
                 {formatDKK(totalRealized)}
               </span>
             </p>
           )}
-          <p className="text-xs text-muted-foreground mt-1">
+          <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 4 }}>
             Cost basis {formatDKK(totalCost)} · {allActivePositions.length} holding{allActivePositions.length !== 1 ? "s" : ""}
           </p>
         </div>
       ) : (
-        <div className="py-8 text-center text-muted-foreground">
+        <div style={{ paddingTop: 32, paddingBottom: 32, textAlign: "center", color: "var(--muted-foreground)" }}>
           No positions yet. Go to{" "}
-          <Link href="/settings" className="text-primary hover:underline">
+          <Link href="/settings" style={{ color: "var(--primary)", textDecoration: "none" }}>
             Settings
           </Link>{" "}
           to add instruments and transactions.
@@ -220,7 +252,7 @@ export function Dashboard() {
       {/* Holdings Table */}
       {positions.some((p) => p.quantity > 0) && (
         <div>
-          <Tabs value={accountFilter} onValueChange={setAccountFilter} className="mb-3">
+          <Tabs value={accountFilter} onValueChange={setAccountFilter} style={{ marginBottom: 12 }}>
             <TabsList>
               <TabsTrigger value="all">All Accounts</TabsTrigger>
               {accounts.map((acc) => (
@@ -230,22 +262,22 @@ export function Dashboard() {
               ))}
             </TabsList>
 
-            <TabsContent value={accountFilter} className="mt-3">
+            <TabsContent value={accountFilter} style={{ marginTop: 12 }}>
               {activePositions.length === 0 ? (
-                <div className="py-8 text-center text-muted-foreground">
+                <div style={{ paddingTop: 32, paddingBottom: 32, textAlign: "center", color: "var(--muted-foreground)" }}>
                   No positions yet. Go to{" "}
-                  <Link href="/settings" className="text-primary hover:underline">
+                  <Link href="/settings" style={{ color: "var(--primary)", textDecoration: "none" }}>
                     Settings
                   </Link>{" "}
                   to add instruments and transactions.
                 </div>
               ) : (
-                <div className="rounded-lg border bg-card">
+                <div style={{ borderRadius: "var(--radius-lg)", border: "1px solid var(--border)", background: "var(--card)" }}>
                   <Table>
                     <TableHeader>
-                      <TableRow className="hover:bg-transparent">
+                      <TableRow>
                         <SortableHead label="Instrument" sortKey="name" currentSort={sort} onSort={handleSort} />
-                        <TableHead className="w-20"></TableHead>
+                        <TableHead style={{ width: 80 }}></TableHead>
                         <SortableHead label="Value" sortKey="value" currentSort={sort} onSort={handleSort} align="right" />
                         <SortableHead label="Day" sortKey="dayChange" currentSort={sort} onSort={handleSort} align="right" />
                         <SortableHead label="Total P/L" sortKey="unrealizedGainLoss" currentSort={sort} onSort={handleSort} align="right" />
@@ -260,66 +292,70 @@ export function Dashboard() {
                             ? (p.unrealizedGainLoss / p.costBasis) * 100
                             : 0;
                         return (
-                          <TableRow
-                            key={i}
-                            className="transition-colors duration-100 hover:bg-white/[0.02]"
-                          >
-                            <TableCell className="py-2.5 px-3">
-                              <InstrumentBadge instrument={p.instrument} position={p} className="items-start">
+                          <TableRow key={i} data-hover="table-row">
+                            <TableCell style={{ paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>
+                              <InstrumentBadge instrument={p.instrument} position={p}>
                                 <div>
-                                  <div className="font-medium text-sm flex items-center gap-1.5">
+                                  <div style={{ fontWeight: 500, fontSize: 14, display: "flex", alignItems: "center", gap: 6 }}>
                                     {pulseIsins.has(p.instrument.isin) && (
-                                      <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                                      <span style={{
+                                        height: 6,
+                                        width: 6,
+                                        borderRadius: "50%",
+                                        background: "var(--primary)",
+                                        flexShrink: 0,
+                                        display: "inline-block",
+                                      }} />
                                     )}
                                     {p.instrument.ticker || p.instrument.isin}
                                     {p.instrument.currency !== "DKK" && (
-                                      <span className="ml-1.5 text-xs text-muted-foreground">
+                                      <span style={{ marginLeft: 6, fontSize: 12, color: "var(--muted-foreground)" }}>
                                         {p.instrument.currency}
                                       </span>
                                     )}
                                   </div>
-                                  <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                                  <div style={{ fontSize: 12, color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>
                                     {p.instrument.name}
                                   </div>
                                 </div>
                               </InstrumentBadge>
                             </TableCell>
-                            <TableCell className="py-2.5 px-3">
+                            <TableCell style={{ paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>
                               {p.instrument.yahooSymbol && (
                                 <Sparkline
                                   symbol={p.instrument.yahooSymbol}
-                                  className="h-7 w-20"
+                                  style={{ height: 28, width: 80 }}
                                 />
                               )}
                             </TableCell>
-                            <TableCell className="text-right py-2.5 px-3 tabular-nums font-mono text-sm">
-                              {p.currentValue !== null ? formatDKK(p.currentValue) : "—"}
+                            <TableCell style={{ textAlign: "right", paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12, fontVariantNumeric: "tabular-nums", fontFamily: "var(--font-mono)", fontSize: 14 }}>
+                              {p.currentValue !== null ? formatDKK(p.currentValue) : "\u2014"}
                             </TableCell>
-                            <TableCell className="text-right py-2.5 px-3">
+                            <TableCell style={{ textAlign: "right", paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>
                               {p.dayChange !== null && p.dayChangePercent !== null ? (
-                                <div className={cn("tabular-nums font-mono text-sm", gainLossColor(p.dayChange))}>
+                                <div style={{ fontVariantNumeric: "tabular-nums", fontFamily: "var(--font-mono)", fontSize: 14, color: glColor(p.dayChange) }}>
                                   <div>{p.dayChange >= 0 ? "+" : ""}{formatDKK(p.dayChange)}</div>
-                                  <div className="text-xs">{formatPercent(p.dayChangePercent)}</div>
+                                  <div style={{ fontSize: 12 }}>{formatPercent(p.dayChangePercent)}</div>
                                 </div>
                               ) : (
-                                <span className="text-muted-foreground">—</span>
+                                <span style={{ color: "var(--muted-foreground)" }}>{"\u2014"}</span>
                               )}
                             </TableCell>
-                            <TableCell className="text-right py-2.5 px-3">
+                            <TableCell style={{ textAlign: "right", paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>
                               {p.currentValue !== null ? (
-                                <div className={cn("tabular-nums font-mono text-sm", gainLossColor(p.unrealizedGainLoss))}>
+                                <div style={{ fontVariantNumeric: "tabular-nums", fontFamily: "var(--font-mono)", fontSize: 14, color: glColor(p.unrealizedGainLoss) }}>
                                   <div>{formatDKK(p.unrealizedGainLoss)}</div>
-                                  <div className="text-xs">({formatPercent(gainPct)})</div>
+                                  <div style={{ fontSize: 12 }}>({formatPercent(gainPct)})</div>
                                 </div>
                               ) : (
-                                <span className="text-muted-foreground">—</span>
+                                <span style={{ color: "var(--muted-foreground)" }}>{"\u2014"}</span>
                               )}
                             </TableCell>
-                            <TableCell className="text-right py-2.5 px-3 tabular-nums font-mono text-sm text-muted-foreground">
+                            <TableCell style={{ textAlign: "right", paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12, fontVariantNumeric: "tabular-nums", fontFamily: "var(--font-mono)", fontSize: 14, color: "var(--muted-foreground)" }}>
                               {portfolioWeight(p.currentValue ?? 0, totalValue)}
                             </TableCell>
-                            <TableCell className="py-2.5 px-3">
-                              <Badge variant="outline" className="text-xs">
+                            <TableCell style={{ paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>
+                              <Badge variant="outline">
                                 {p.accountName}
                               </Badge>
                             </TableCell>
@@ -335,55 +371,51 @@ export function Dashboard() {
 
           {/* Closed Positions */}
           {closedPositions.length > 0 && (
-            <div className="mt-4">
+            <div style={{ marginTop: 16 }}>
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-muted-foreground hover:text-foreground gap-1 px-0"
                 onClick={() => setShowClosed((v) => !v)}
               >
                 {showClosed ? (
-                  <ChevronDown className="h-4 w-4" />
+                  <ChevronDown style={{ height: 16, width: 16 }} />
                 ) : (
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight style={{ height: 16, width: 16 }} />
                 )}
                 Closed Positions ({closedPositions.length})
               </Button>
               {showClosed && (
-                <div className="rounded-lg border bg-card mt-2">
+                <div style={{ borderRadius: "var(--radius-lg)", border: "1px solid var(--border)", background: "var(--card)", marginTop: 8 }}>
                   <Table>
                     <TableHeader>
-                      <TableRow className="hover:bg-transparent">
+                      <TableRow>
                         <TableHead>Instrument</TableHead>
-                        <TableHead className="text-right">Realized P/L</TableHead>
+                        <TableHead style={{ textAlign: "right" }}>Realized P/L</TableHead>
                         <TableHead>Account</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {closedPositions.map((p, i) => (
-                        <TableRow
-                          key={i}
-                          className="transition-colors duration-100 hover:bg-white/[0.02]"
-                        >
-                          <TableCell className="py-2.5 px-3">
-                            <InstrumentBadge instrument={p.instrument} position={p} className="items-start">
+                        <TableRow key={i} data-hover="table-row">
+                          <TableCell style={{ paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>
+                            <InstrumentBadge instrument={p.instrument} position={p}>
                               <div>
-                                <div className="font-medium text-sm">
+                                <div style={{ fontWeight: 500, fontSize: 14 }}>
                                   {p.instrument.ticker || p.instrument.isin}
                                 </div>
-                                <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                                <div style={{ fontSize: 12, color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>
                                   {p.instrument.name}
                                 </div>
                               </div>
                             </InstrumentBadge>
                           </TableCell>
-                          <TableCell className="text-right py-2.5 px-3">
-                            <span className={cn("tabular-nums font-mono text-sm", gainLossColor(p.realizedGainLoss))}>
+                          <TableCell style={{ textAlign: "right", paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>
+                            <span style={{ fontVariantNumeric: "tabular-nums", fontFamily: "var(--font-mono)", fontSize: 14, color: glColor(p.realizedGainLoss) }}>
                               {formatDKK(p.realizedGainLoss)}
                             </span>
                           </TableCell>
-                          <TableCell className="py-2.5 px-3">
-                            <Badge variant="outline" className="text-xs">
+                          <TableCell style={{ paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>
+                            <Badge variant="outline">
                               {p.accountName}
                             </Badge>
                           </TableCell>

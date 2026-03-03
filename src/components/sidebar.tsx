@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { BarChart3, MessageSquare, Settings, Activity } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
 import type { ChatSummary } from "@/types";
 
 const navItems = [
@@ -47,15 +46,39 @@ export function Sidebar() {
   }, []);
 
   return (
-    <aside className="glass w-56 shrink-0 flex flex-col h-screen sticky top-0">
-      <div className="p-3">
-        <Link href="/" className="flex items-center gap-2">
-          <Activity className="h-5 w-5 text-primary" />
-          <span className="text-lg font-semibold tracking-tight">Sonar</span>
+    <aside
+      className="glass"
+      style={{
+        width: 224,
+        flexShrink: 0,
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        position: "sticky",
+        top: 0,
+      }}
+    >
+      <div style={{ padding: 12 }}>
+        <Link
+          href="/"
+          style={{ display: "flex", alignItems: "center", gap: 8 }}
+        >
+          <Activity
+            style={{ width: 20, height: 20, color: "var(--primary)" }}
+          />
+          <span
+            style={{
+              fontSize: 18,
+              fontWeight: 600,
+              letterSpacing: "-0.025em",
+            }}
+          >
+            Sonar
+          </span>
         </Link>
       </div>
 
-      <nav className="px-2 space-y-0.5">
+      <nav style={{ padding: "0 8px" }}>
         {navItems.map((item) => {
           const active = isActive(pathname, item.href);
           const Icon = item.icon;
@@ -63,66 +86,129 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={cn(
-                "relative flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150",
-                active
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
+              style={{
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                borderRadius: "var(--radius-md)",
+                padding: "6px 12px",
+                fontSize: 14,
+                fontWeight: 500,
+                color: active
+                  ? "var(--foreground)"
+                  : "var(--muted-foreground)",
+                transition: "color 150ms",
+                textDecoration: "none",
+                marginBottom: 2,
+              }}
+              {...(!active ? { "data-hover": "nav-link" } : {})}
             >
               {active && (
                 <motion.div
                   layoutId="nav-indicator"
-                  className="absolute inset-0 rounded-md bg-white/[0.06]"
-                  transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1.0] }}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "var(--radius-md)",
+                    background: "rgba(255, 255, 255, 0.06)",
+                  }}
+                  transition={{
+                    duration: 0.2,
+                    ease: [0.25, 0.1, 0.25, 1.0],
+                  }}
                 />
               )}
-              <Icon className="relative h-4 w-4" />
-              <span className="relative">{item.label}</span>
+              <Icon style={{ position: "relative", width: 16, height: 16 }} />
+              <span style={{ position: "relative" }}>{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t border-border my-3" />
-      <div className="px-3 mb-1">
-        <span className="text-xs font-medium text-muted-foreground">Recent</span>
+      <div
+        style={{
+          borderTop: "1px solid var(--border)",
+          margin: "12px 0",
+        }}
+      />
+      <div style={{ padding: "0 12px", marginBottom: 4 }}>
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 500,
+            color: "var(--muted-foreground)",
+          }}
+        >
+          Recent
+        </span>
       </div>
-      <ScrollArea className="flex-1 min-h-0">
-            <div className="px-2 space-y-0.5">
-              {chats.map((chat) => {
-                const href = `/chat/${chat.id}`;
-                const active =
-                  pathname === href ||
-                  (pathname === "/chat" &&
-                    chat.date === new Date().toISOString().split("T")[0]);
+      <ScrollArea style={{ flex: 1, minHeight: 0 }}>
+        <div style={{ padding: "0 8px" }}>
+          {chats.map((chat) => {
+            const href = `/chat/${chat.id}`;
+            const active =
+              pathname === href ||
+              (pathname === "/chat" &&
+                chat.date === new Date().toISOString().split("T")[0]);
 
-                return (
-                  <Link
-                    key={chat.id}
-                    href={href}
-                    className={cn(
-                      "block rounded-md px-3 py-2 text-sm transition-colors duration-100",
-                      active
-                        ? "bg-white/[0.06] text-foreground"
-                        : "text-muted-foreground hover:bg-white/[0.03] hover:text-foreground"
-                    )}
-                  >
-                    <div className="font-medium truncate">
-                      {formatDate(chat.date)}
-                    </div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {chat.title}
-                    </div>
-                  </Link>
-                );
-              })}
-              {chats.length === 0 && (
-                <p className="text-xs text-muted-foreground px-3 py-2">
-                  No conversations yet.
-                </p>
-              )}
-            </div>
+            return (
+              <Link
+                key={chat.id}
+                href={href}
+                style={{
+                  display: "block",
+                  borderRadius: "var(--radius-md)",
+                  padding: "8px 12px",
+                  fontSize: 14,
+                  transition: "color 100ms, background 100ms",
+                  textDecoration: "none",
+                  marginBottom: 2,
+                  background: active
+                    ? "rgba(255, 255, 255, 0.06)"
+                    : "transparent",
+                  color: active
+                    ? "var(--foreground)"
+                    : "var(--muted-foreground)",
+                }}
+                {...(!active ? { "data-hover": "chat-link" } : {})}
+              >
+                <div
+                  style={{
+                    fontWeight: 500,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {formatDate(chat.date)}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--muted-foreground)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {chat.title}
+                </div>
+              </Link>
+            );
+          })}
+          {chats.length === 0 && (
+            <p
+              style={{
+                fontSize: 12,
+                color: "var(--muted-foreground)",
+                padding: "8px 12px",
+              }}
+            >
+              No conversations yet.
+            </p>
+          )}
+        </div>
       </ScrollArea>
     </aside>
   );

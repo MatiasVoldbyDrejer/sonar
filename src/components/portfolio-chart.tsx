@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { cn, formatDKK } from "@/lib/utils";
+import { formatDKK } from "@/lib/utils";
 import {
   ChartContainer,
   ChartTooltip,
@@ -41,20 +41,46 @@ export function PortfolioChart() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 12,
+        }}
+      >
+        <p
+          style={{
+            fontSize: 14,
+            fontWeight: 500,
+            color: "var(--muted-foreground)",
+            textTransform: "uppercase",
+            letterSpacing: "0.025em",
+          }}
+        >
           Performance
         </p>
-        <div className="flex gap-1">
+        <div style={{ display: "flex", gap: 4 }}>
           {periods.map((p) => (
             <button
               key={p.value}
-              className={cn(
-                "h-7 px-2.5 text-xs font-medium rounded-md transition-colors duration-150",
-                period === p.value
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"
-              )}
+              style={{
+                height: 28,
+                padding: "0 10px",
+                fontSize: 12,
+                fontWeight: 500,
+                borderRadius: "var(--radius-md)",
+                border: "none",
+                cursor: "pointer",
+                transition: "color 150ms, background 150ms",
+                background:
+                  period === p.value ? "var(--primary)" : "transparent",
+                color:
+                  period === p.value
+                    ? "var(--primary-foreground)"
+                    : "var(--muted-foreground)",
+              }}
+              {...(period !== p.value ? { "data-hover": "period-btn" } : {})}
               onClick={() => setPeriod(p.value)}
             >
               {p.label}
@@ -62,13 +88,24 @@ export function PortfolioChart() {
           ))}
         </div>
       </div>
-      <div className={cn("transition-opacity duration-200", loading && "opacity-50")}>
+      <div style={{ opacity: loading ? 0.5 : 1, transition: "opacity 200ms" }}>
         {data.length === 0 && !loading ? (
-          <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+          <div
+            style={{
+              height: 300,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--muted-foreground)",
+            }}
+          >
             No chart data available
           </div>
         ) : (
-          <ChartContainer config={chartConfig} className="h-[300px] w-full">
+          <ChartContainer
+            config={chartConfig}
+            style={{ height: 300, width: "100%" }}
+          >
             <ResponsiveContainer>
               <AreaChart data={data}>
                 <defs>

@@ -25,7 +25,9 @@ export function EditInstrumentForm({
   const [ticker, setTicker] = useState(instrument.ticker || "");
   const [type, setType] = useState<string>(instrument.type);
   const [currency, setCurrency] = useState(instrument.currency);
-  const [yahooSymbol, setYahooSymbol] = useState(instrument.yahooSymbol || "");
+  const [yahooSymbol, setYahooSymbol] = useState(
+    instrument.yahooSymbol || ""
+  );
   const [exchange, setExchange] = useState(instrument.exchange || "");
   const [resolving, setResolving] = useState(false);
   const [searchResults, setSearchResults] = useState<
@@ -91,13 +93,20 @@ export function EditInstrumentForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="flex gap-2">
-        <div className="flex-1">
+    <form
+      onSubmit={handleSubmit}
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
+      <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ flex: 1 }}>
           <Label>ISIN</Label>
-          <Input value={instrument.isin} disabled className="font-mono" />
+          <Input
+            value={instrument.isin}
+            disabled
+            style={{ fontFamily: "var(--font-mono)" }}
+          />
         </div>
-        <div className="flex items-end">
+        <div style={{ display: "flex", alignItems: "flex-end" }}>
           <Button
             type="button"
             variant="outline"
@@ -110,20 +119,58 @@ export function EditInstrumentForm({
       </div>
 
       {searchResults.length > 0 && (
-        <div className="border rounded-md p-2 space-y-1 max-h-40 overflow-y-auto">
-          <p className="text-xs text-muted-foreground mb-1">
+        <div
+          style={{
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-md)",
+            padding: 8,
+            maxHeight: 160,
+            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+          }}
+        >
+          <p
+            style={{
+              fontSize: 12,
+              color: "var(--muted-foreground)",
+              marginBottom: 4,
+            }}
+          >
             Select a match:
           </p>
           {searchResults.map((r, i) => (
             <button
               key={i}
               type="button"
-              className="w-full text-left px-2 py-1 rounded text-sm hover:bg-muted"
+              style={{
+                width: "100%",
+                textAlign: "left",
+                padding: "4px 8px",
+                borderRadius: "var(--radius-md)",
+                fontSize: 14,
+                background: "transparent",
+                border: "none",
+                color: "inherit",
+                cursor: "pointer",
+              }}
+              data-hover="search-result"
               onClick={() => selectResult(r)}
             >
-              <span className="font-medium">{r.symbol}</span>
-              <span className="text-muted-foreground ml-2">{r.name}</span>
-              <span className="text-muted-foreground ml-2 text-xs">
+              <span style={{ fontWeight: 500 }}>{r.symbol}</span>
+              <span
+                style={{ color: "var(--muted-foreground)", marginLeft: 8 }}
+              >
+                {r.name}
+              </span>
+              <span
+                style={{
+                  color: "var(--muted-foreground)",
+                  marginLeft: 8,
+                  fontSize: 12,
+                }}
+              >
                 {r.exchange}
               </span>
             </button>
@@ -141,7 +188,13 @@ export function EditInstrumentForm({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 16,
+        }}
+      >
         <div>
           <Label htmlFor="edit-ticker">Ticker</Label>
           <Input
@@ -162,7 +215,13 @@ export function EditInstrumentForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 16,
+        }}
+      >
         <div>
           <Label>Type</Label>
           <Select value={type} onValueChange={setType}>
@@ -197,7 +256,7 @@ export function EditInstrumentForm({
         </div>
       </div>
 
-      <Button type="submit" className="w-full">
+      <Button type="submit" style={{ width: "100%" }}>
         Save Changes
       </Button>
     </form>

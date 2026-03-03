@@ -13,7 +13,6 @@ import {
   RefreshCw,
   Activity,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { fadeIn } from "@/lib/motion";
 import { PulseSkeleton } from "@/components/skeleton-shimmer";
 import { InstrumentBadge } from "@/components/instrument-badge";
@@ -110,15 +109,15 @@ export function PortfolioPulse({ onItemsLoaded }: PortfolioPulseProps) {
   if (state.phase === "loading" || state.phase === "generating") {
     return (
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <Activity className="h-4 w-4 text-primary" />
-          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+          <Activity style={{ height: "1rem", width: "1rem", color: "var(--primary)" }} />
+          <p style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.025em" }}>
             Portfolio Pulse
           </p>
         </div>
         <PulseSkeleton />
         {state.phase === "generating" && (
-          <p className="text-xs text-muted-foreground mt-2 animate-pulse">
+          <p className="animate-pulse" style={{ fontSize: "0.75rem", color: "var(--muted-foreground)", marginTop: "0.5rem" }}>
             Scanning your holdings...
           </p>
         )}
@@ -128,17 +127,18 @@ export function PortfolioPulse({ onItemsLoaded }: PortfolioPulseProps) {
 
   if (state.phase === "error") {
     return (
-      <div className="rounded-lg border bg-card p-5">
-        <div className="flex items-center gap-2 mb-2">
-          <Activity className="h-4 w-4 text-primary" />
-          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+      <div style={{ borderRadius: "var(--radius-lg)", border: "1px solid var(--border)", background: "var(--card)", padding: "1.25rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+          <Activity style={{ height: "1rem", width: "1rem", color: "var(--primary)" }} />
+          <p style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.025em" }}>
             Portfolio Pulse
           </p>
         </div>
-        <p className="text-sm text-muted-foreground">{state.error}</p>
+        <p style={{ fontSize: "0.875rem", color: "var(--muted-foreground)" }}>{state.error}</p>
         <button
           onClick={generate}
-          className="text-sm text-primary hover:underline mt-2"
+          style={{ fontSize: "0.875rem", color: "var(--primary)", background: "none", border: "none", cursor: "pointer", marginTop: "0.5rem", padding: 0 }}
+          data-hover="text-btn"
         >
           Try again
         </button>
@@ -148,17 +148,17 @@ export function PortfolioPulse({ onItemsLoaded }: PortfolioPulseProps) {
 
   if (state.phase === "quiet") {
     return (
-      <motion.div className="rounded-lg border bg-card p-5" {...fadeIn}>
-        <div className="flex items-center gap-2 mb-3">
-          <Activity className="h-4 w-4 text-primary" />
-          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+      <motion.div style={{ borderRadius: "var(--radius-lg)", border: "1px solid var(--border)", background: "var(--card)", padding: "1.25rem" }} {...fadeIn}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+          <Activity style={{ height: "1rem", width: "1rem", color: "var(--primary)" }} />
+          <p style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.025em" }}>
             Portfolio Pulse
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <CircleCheck className="h-5 w-5 text-gain shrink-0" />
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <CircleCheck style={{ height: "1.25rem", width: "1.25rem", color: "var(--gain)", flexShrink: 0 }} />
           <div>
-            <p className="text-sm">{state.summary ?? "All quiet — nothing needs your attention right now."}</p>
+            <p style={{ fontSize: "0.875rem" }}>{state.summary ?? "All quiet — nothing needs your attention right now."}</p>
           </div>
         </div>
         <PulseFooter createdAt={state.createdAt} onRefresh={generate} />
@@ -169,18 +169,18 @@ export function PortfolioPulse({ onItemsLoaded }: PortfolioPulseProps) {
   // phase === "ok" with items
   return (
     <motion.div {...fadeIn}>
-      <div className="flex items-center gap-2 mb-3">
-        <Activity className="h-4 w-4 text-primary" />
-        <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+        <Activity style={{ height: "1rem", width: "1rem", color: "var(--primary)" }} />
+        <p style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.025em" }}>
           Portfolio Pulse
         </p>
       </div>
 
       {state.summary && (
-        <p className="text-sm text-muted-foreground mb-3">{state.summary}</p>
+        <p style={{ fontSize: "0.875rem", color: "var(--muted-foreground)", marginBottom: "0.75rem" }}>{state.summary}</p>
       )}
 
-      <div className="space-y-2">
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
         {state.items?.map((item) => (
           <PulseItemCard key={item.isin + item.signalType} item={item} />
         ))}
@@ -198,28 +198,38 @@ function PulseItemCard({ item }: { item: PulseItem }) {
 
   return (
     <div
-      className={cn(
-        "rounded-lg border bg-card p-4 transition-colors",
-        isRisk && "bg-loss/5",
-        isOpportunity && "bg-gain/5"
-      )}
+      style={{
+        borderRadius: "var(--radius-lg)",
+        border: "1px solid var(--border)",
+        background: isRisk
+          ? "oklch(0.68 0.12 20 / 0.05)"
+          : isOpportunity
+            ? "oklch(0.75 0.10 155 / 0.05)"
+            : "var(--card)",
+        padding: "1rem",
+        transition: "border-color 0.15s",
+      }}
+      data-hover="card"
     >
-      <div className="flex items-start gap-3">
+      <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
         <Icon
-          className={cn(
-            "h-4 w-4 mt-0.5 shrink-0",
-            isRisk ? "text-loss" : isOpportunity ? "text-gain" : "text-primary"
-          )}
+          style={{
+            height: "1rem",
+            width: "1rem",
+            marginTop: "0.125rem",
+            flexShrink: 0,
+            color: isRisk ? "var(--loss)" : isOpportunity ? "var(--gain)" : "var(--primary)",
+          }}
         />
-        <div className="min-w-0 space-y-1">
-          <p className="text-sm font-medium leading-snug">{item.headline}</p>
-          <p className="text-sm text-muted-foreground leading-relaxed">
+        <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+          <p style={{ fontSize: "0.875rem", fontWeight: 500, lineHeight: 1.4 }}>{item.headline}</p>
+          <p style={{ fontSize: "0.875rem", color: "var(--muted-foreground)", lineHeight: 1.625 }}>
             {item.explanation}
           </p>
-          <p className="text-xs text-muted-foreground/70 italic">
+          <p style={{ fontSize: "0.75rem", color: "color-mix(in oklch, var(--muted-foreground) 70%, transparent)", fontStyle: "italic" }}>
             {item.suggestedAction}
           </p>
-          <span className="text-xs text-primary">
+          <span style={{ fontSize: "0.75rem", color: "var(--primary)" }}>
             <InstrumentBadge
               instrument={{ isin: item.isin, ticker: item.ticker, name: item.instrumentName }}
             />
@@ -238,15 +248,16 @@ function PulseFooter({
   onRefresh: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between mt-3">
-      <p className="text-xs text-muted-foreground">
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.75rem" }}>
+      <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>
         {createdAt ? `Updated ${timeAgo(createdAt)}` : ""}
       </p>
       <button
         onClick={onRefresh}
-        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontSize: "0.75rem", color: "var(--muted-foreground)", background: "none", border: "none", cursor: "pointer", padding: 0, transition: "color 0.15s" }}
+        data-hover="text-btn"
       >
-        <RefreshCw className="h-3 w-3" />
+        <RefreshCw style={{ height: "0.75rem", width: "0.75rem" }} />
         Refresh
       </button>
     </div>

@@ -28,12 +28,18 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background`}
+        className={`${geistSans.variable} ${geistMono.variable}`}
+        style={{
+          WebkitFontSmoothing: "antialiased",
+          MozOsxFontSmoothing: "grayscale",
+          background: "var(--background)",
+          color: "var(--foreground)",
+        }}
       >
-        <div className="flex h-screen">
+        <div style={{ display: "flex", height: "100vh" }}>
           <Sidebar />
           <PositionLookupProvider>
-            <main className="flex-1 min-w-0 overflow-auto">
+            <main style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
               {children}
             </main>
           </PositionLookupProvider>

@@ -9,7 +9,7 @@ export default async function InstrumentPage({
 }) {
   const { isin } = await params;
   return (
-    <div className="container mx-auto max-w-7xl p-6">
+    <div style={{ maxWidth: 1280, margin: "0 auto", padding: 24 }}>
       <InstrumentDetail isin={isin} />
     </div>
   );

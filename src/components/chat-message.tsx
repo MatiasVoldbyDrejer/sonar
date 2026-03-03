@@ -2,7 +2,6 @@
 
 import { MarkdownContent } from "@/components/markdown-content";
 import { BarChart3, Briefcase } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { AgentType, Instrument } from "@/types";
 
 const agentConfig = {
@@ -25,33 +24,76 @@ interface ChatMessageProps {
   instruments?: Instrument[];
 }
 
-export function ChatMessage({ role, content, agent, citations, isStreaming, instruments }: ChatMessageProps) {
+export function ChatMessage({
+  role,
+  content,
+  agent,
+  citations,
+  isStreaming,
+  instruments,
+}: ChatMessageProps) {
   if (role === "user") {
     return (
-      <div className="border-l-2 border-primary pl-4 py-1">
-        <p className="text-sm whitespace-pre-wrap">{content}</p>
+      <div
+        style={{
+          borderLeft: "2px solid var(--primary)",
+          paddingLeft: 16,
+          padding: "4px 0 4px 16px",
+        }}
+      >
+        <p style={{ fontSize: 14, whiteSpace: "pre-wrap" }}>{content}</p>
       </div>
     );
   }
 
-  const config = agent ? agentConfig[agent] : agentConfig["portfolio-analyst"];
+  const config = agent
+    ? agentConfig[agent]
+    : agentConfig["portfolio-analyst"];
   const Icon = config.icon;
 
   return (
-    <div className="py-1">
-      <div className="flex items-center gap-1.5 mb-2">
-        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+    <div style={{ padding: "4px 0" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          marginBottom: 8,
+        }}
+      >
+        <Icon
+          style={{
+            width: 14,
+            height: 14,
+            color: "var(--muted-foreground)",
+          }}
+        />
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 500,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            color: "var(--muted-foreground)",
+          }}
+        >
           {config.label}
         </span>
       </div>
-      <div className={cn("border-t border-border pt-3")}>
+      <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
         {content ? (
           <div className={isStreaming ? "blink-cursor" : undefined}>
-            <MarkdownContent content={content} citations={citations} instruments={instruments} />
+            <MarkdownContent
+              content={content}
+              citations={citations}
+              instruments={instruments}
+            />
           </div>
         ) : (
-          <span className="blink-cursor text-sm text-muted-foreground" />
+          <span
+            className="blink-cursor"
+            style={{ fontSize: 14, color: "var(--muted-foreground)" }}
+          />
         )}
       </div>
     </div>

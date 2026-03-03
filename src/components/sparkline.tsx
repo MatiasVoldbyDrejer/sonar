@@ -4,10 +4,10 @@ import { useEffect, useState, useRef } from "react";
 
 interface SparklineProps {
   symbol: string;
-  className?: string;
+  style?: React.CSSProperties;
 }
 
-export function Sparkline({ symbol, className }: SparklineProps) {
+export function Sparkline({ symbol, style }: SparklineProps) {
   const [points, setPoints] = useState<number[] | null>(null);
   const [inView, setInView] = useState(false);
   const ref = useRef<SVGSVGElement>(null);
@@ -15,7 +15,9 @@ export function Sparkline({ symbol, className }: SparklineProps) {
   useEffect(() => {
     if (!ref.current) return;
     const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setInView(true); },
+      ([entry]) => {
+        if (entry.isIntersecting) setInView(true);
+      },
       { rootMargin: "100px" }
     );
     observer.observe(ref.current);
@@ -33,7 +35,7 @@ export function Sparkline({ symbol, className }: SparklineProps) {
   }, [inView, symbol]);
 
   if (!points || points.length < 2) {
-    return <svg ref={ref} viewBox="0 0 80 28" className={className} />;
+    return <svg ref={ref} viewBox="0 0 80 28" style={style} />;
   }
 
   const min = Math.min(...points);
@@ -42,13 +44,16 @@ export function Sparkline({ symbol, className }: SparklineProps) {
   const step = 80 / (points.length - 1);
 
   const polyline = points
-    .map((v, i) => `${(i * step).toFixed(1)},${(28 - ((v - min) / range) * 24 - 2).toFixed(1)}`)
+    .map(
+      (v, i) =>
+        `${(i * step).toFixed(1)},${(28 - ((v - min) / range) * 24 - 2).toFixed(1)}`
+    )
     .join(" ");
 
   const isGain = points[points.length - 1] >= points[0];
 
   return (
-    <svg ref={ref} viewBox="0 0 80 28" className={className}>
+    <svg ref={ref} viewBox="0 0 80 28" style={style}>
       <polyline
         points={polyline}
         fill="none"
