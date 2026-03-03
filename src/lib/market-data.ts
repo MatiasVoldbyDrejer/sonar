@@ -13,8 +13,35 @@ interface CacheEntry<T> {
 
 const quoteCache = new Map<string, CacheEntry<Quote>>();
 const chartCache = new Map<string, CacheEntry<ChartDataPoint[]>>();
+const fundHoldingsCache = new Map<string, CacheEntry<FundHoldings>>();
 const QUOTE_TTL = 5 * 60 * 1000; // 5 minutes
 const CHART_TTL = 30 * 60 * 1000; // 30 minutes
+const FUND_HOLDINGS_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+export interface FundHolding {
+  symbol: string;
+  holdingName: string;
+  holdingPercent: number;
+}
+
+export interface FundHoldings {
+  holdings: FundHolding[];
+  sectorWeightings: Map<string, number>;
+}
+
+const SECTOR_NAME_MAP: Record<string, string> = {
+  realestate: 'Real Estate',
+  consumer_cyclical: 'Consumer Cyclical',
+  basic_materials: 'Basic Materials',
+  consumer_defensive: 'Consumer Defensive',
+  technology: 'Technology',
+  communication_services: 'Communication Services',
+  financial_services: 'Financial Services',
+  utilities: 'Utilities',
+  industrials: 'Industrials',
+  energy: 'Energy',
+  healthcare: 'Healthcare',
+};
 
 export async function getQuote(symbol: string): Promise<Quote | null> {
   const cached = quoteCache.get(symbol);
@@ -180,5 +207,41 @@ function getInterval(period: string): '1d' | '1wk' | '1mo' {
     case '1y': return '1d';
     case '5y': return '1wk';
     default: return '1d';
+  }
+}
+
+export async function getFundHoldings(symbol: string): Promise<FundHoldings | null> {
+  const cached = fundHoldingsCache.get(symbol);
+  if (cached && Date.now() - cached.timestamp < FUND_HOLDINGS_TTL) {
+    return cached.data;
+  }
+
+  try {
+    const result: any = await yf.quoteSummary(symbol, { modules: ['topHoldings'] });
+    const th = result?.topHoldings;
+    if (!th) return cached?.data ?? null;
+
+    const holdings: FundHolding[] = (th.holdings || []).map((h: any) => ({
+      symbol: (h.symbol as string) ?? '',
+      holdingName: (h.holdingName as string) ?? 'Unknown',
+      holdingPercent: (h.holdingPercent as number) ?? 0,
+    }));
+
+    const sectorWeightings = new Map<string, number>();
+    for (const entry of (th.sectorWeightings || [])) {
+      for (const [key, value] of Object.entries(entry)) {
+        if (key === 'maxAge') continue;
+        const name = SECTOR_NAME_MAP[key] ?? key;
+        if (typeof value === 'number' && value > 0) {
+          sectorWeightings.set(name, value);
+        }
+      }
+    }
+
+    const data: FundHoldings = { holdings, sectorWeightings };
+    fundHoldingsCache.set(symbol, { data, timestamp: Date.now() });
+    return data;
+  } catch {
+    return cached?.data ?? null;
   }
 }

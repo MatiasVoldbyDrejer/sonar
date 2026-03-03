@@ -2,7 +2,8 @@
 import { NextResponse } from 'next/server';
 import { getDb, mapInstrumentRow, mapTransactionRow, mapAccountRow, getSetting } from '@/lib/db';
 import { aggregatePositions } from '@/lib/portfolio-engine';
-import { getBatchQuotes, getAssetProfile } from '@/lib/market-data';
+import { getBatchQuotes, getAssetProfile, getFundHoldings } from '@/lib/market-data';
+import type { FundHoldings } from '@/lib/market-data';
 import { getBatchCurrentRates, getBatchHistoricalRates } from '@/lib/fx';
 import type { Instrument, AllocationSlice, DeepDiveData, DiversificationScore } from '@/types';
 
@@ -68,16 +69,33 @@ export async function GET() {
     }
   }
 
-  // Fetch quotes + FX rates
+  // Identify fund/ETF instruments for look-through
+  const fundInstruments = [...instruments.values()].filter(
+    i => (i.type === 'fund' || i.type === 'etf') && i.yahooSymbol
+  );
+
+  // Fetch quotes + FX rates + fund holdings in parallel
   const symbols = [...instruments.values()]
     .filter(i => i.hasQuoteSource && i.yahooSymbol)
     .map(i => i.yahooSymbol!);
 
-  const [quotes, currentRates, historicalRates] = await Promise.all([
+  const [quotes, currentRates, historicalRates, ...fundHoldingsResults] = await Promise.all([
     getBatchQuotes(symbols),
     getBatchCurrentRates([...currencies], reportingCurrency),
     getBatchHistoricalRates(historicalPairs, reportingCurrency),
+    ...fundInstruments.map(async (inst) => ({
+      isin: inst.isin,
+      ticker: inst.ticker,
+      holdings: await getFundHoldings(inst.yahooSymbol!),
+    })),
   ]);
+
+  const fundHoldingsMap = new Map<string, { ticker: string | null; holdings: FundHoldings }>();
+  for (const result of fundHoldingsResults) {
+    if (result.holdings) {
+      fundHoldingsMap.set(result.isin, { ticker: result.ticker, holdings: result.holdings });
+    }
+  }
 
   const currentPrices = new Map<string, number>();
   for (const [symbol, quote] of quotes) {
@@ -132,26 +150,90 @@ export async function GET() {
   const totalUnrealizedGainLossPercent = totalCostBasis > 0 ? (totalUnrealizedGainLoss / totalCostBasis) * 100 : 0;
   const holdingCount = mergedByIsin.size;
 
-  // Top holdings
-  const sortedByValue = [...mergedByIsin.values()].sort((a, b) => b.value - a.value);
-  const top5 = sortedByValue.slice(0, 5);
+  // Top holdings — merge fund underlying stocks with direct positions
+  const effectiveHoldings = new Map<string, {
+    name: string; ticker: string | null; isin: string;
+    value: number; costBasis: number; unrealizedGainLoss: number;
+    viaFund: string | null;
+  }>();
+
+  for (const pos of mergedByIsin.values()) {
+    const fh = fundHoldingsMap.get(pos.instrument.isin);
+    if (fh && fh.holdings.holdings.length > 0) {
+      // Decompose fund into its underlying stock holdings
+      for (const h of fh.holdings.holdings) {
+        if (h.holdingPercent <= 0) continue;
+        const key = h.symbol || h.holdingName;
+        const holdingValue = pos.value * h.holdingPercent;
+        const holdingCost = pos.costBasis * h.holdingPercent;
+        const holdingGL = pos.unrealizedGainLoss * h.holdingPercent;
+        const existing = effectiveHoldings.get(key);
+        if (existing) {
+          existing.value += holdingValue;
+          existing.costBasis += holdingCost;
+          existing.unrealizedGainLoss += holdingGL;
+          existing.viaFund = null; // merged with direct
+        } else {
+          effectiveHoldings.set(key, {
+            name: h.holdingName, ticker: h.symbol || null, isin: key,
+            value: holdingValue, costBasis: holdingCost, unrealizedGainLoss: holdingGL,
+            viaFund: fh.ticker,
+          });
+        }
+      }
+    } else {
+      // Direct position
+      const key = pos.instrument.yahooSymbol || pos.instrument.isin;
+      const existing = effectiveHoldings.get(key);
+      if (existing) {
+        existing.value += pos.value;
+        existing.costBasis += pos.costBasis;
+        existing.unrealizedGainLoss += pos.unrealizedGainLoss;
+        existing.name = pos.instrument.name;
+        existing.ticker = pos.instrument.ticker;
+        existing.isin = pos.instrument.isin;
+        existing.viaFund = null;
+      } else {
+        effectiveHoldings.set(key, {
+          name: pos.instrument.name, ticker: pos.instrument.ticker, isin: pos.instrument.isin,
+          value: pos.value, costBasis: pos.costBasis, unrealizedGainLoss: pos.unrealizedGainLoss,
+          viaFund: null,
+        });
+      }
+    }
+  }
+
+  const sortedEffective = [...effectiveHoldings.values()].sort((a, b) => b.value - a.value);
+  const top5 = sortedEffective.slice(0, 5);
   const top5Concentration = totalValue > 0 ? top5.reduce((sum, h) => sum + (h.value / totalValue) * 100, 0) : 0;
   const topHoldings = top5.map(h => ({
-    name: h.instrument.name,
-    ticker: h.instrument.ticker,
-    isin: h.instrument.isin,
+    name: h.viaFund ? `${h.name} (via ${h.viaFund})` : h.name,
+    ticker: h.ticker,
+    isin: h.isin,
     value: h.value,
     weight: totalValue > 0 ? (h.value / totalValue) * 100 : 0,
     unrealizedGainLoss: h.unrealizedGainLoss,
     unrealizedGainLossPercent: h.costBasis > 0 ? (h.unrealizedGainLoss / h.costBasis) * 100 : 0,
   }));
 
-  // Separate classified vs unclassified
+  // Separate classified, decomposed funds, and unclassified
   const classified: Array<{ instrument: Instrument; value: number; costBasis: number; unrealizedGainLoss: number }> = [];
   const unclassifiedPositions: Array<{ name: string; isin: string; value: number }> = [];
+  const decomposedFunds: Array<{
+    instrument: Instrument;
+    value: number;
+    costBasis: number;
+    unrealizedGainLoss: number;
+    fundData: { ticker: string | null; holdings: FundHoldings };
+  }> = [];
 
-  for (const { instrument, value, costBasis, unrealizedGainLoss } of mergedByIsin.values()) {
-    if (instrument.sector) {
+  for (const pos of mergedByIsin.values()) {
+    const { instrument, value, costBasis, unrealizedGainLoss } = pos;
+    const fh = fundHoldingsMap.get(instrument.isin);
+
+    if (fh && fh.holdings.sectorWeightings.size > 0) {
+      decomposedFunds.push({ instrument, value, costBasis, unrealizedGainLoss, fundData: fh });
+    } else if (instrument.sector) {
       classified.push({ instrument, value, costBasis, unrealizedGainLoss });
     } else {
       unclassifiedPositions.push({ name: instrument.name, isin: instrument.isin, value });
@@ -161,36 +243,17 @@ export async function GET() {
   const unclassifiedValue = unclassifiedPositions.reduce((s, p) => s + p.value, 0);
   const classifiedTotal = totalValue - unclassifiedValue;
 
-  // Build allocation slices
-  function buildAllocation(key: 'sector' | 'industry' | 'country'): AllocationSlice[] {
-    const groups = new Map<string, {
-      value: number;
-      costBasis: number;
-      unrealizedGainLoss: number;
-      instruments: Array<{
-        name: string; isin: string; value: number; percentage: number;
-        costBasis: number; unrealizedGainLoss: number; unrealizedGainLossPercent: number;
-      }>;
-    }>();
+  type AllocGroup = {
+    value: number;
+    costBasis: number;
+    unrealizedGainLoss: number;
+    instruments: Array<{
+      name: string; isin: string; value: number; percentage: number;
+      costBasis: number; unrealizedGainLoss: number; unrealizedGainLossPercent: number;
+    }>;
+  };
 
-    for (const { instrument, value, costBasis, unrealizedGainLoss } of classified) {
-      const groupName = instrument[key] ?? 'Unknown';
-      const group = groups.get(groupName) ?? { value: 0, costBasis: 0, unrealizedGainLoss: 0, instruments: [] };
-      group.value += value;
-      group.costBasis += costBasis;
-      group.unrealizedGainLoss += unrealizedGainLoss;
-      group.instruments.push({
-        name: instrument.name,
-        isin: instrument.isin,
-        value,
-        percentage: classifiedTotal > 0 ? (value / classifiedTotal) * 100 : 0,
-        costBasis,
-        unrealizedGainLoss,
-        unrealizedGainLossPercent: costBasis > 0 ? (unrealizedGainLoss / costBasis) * 100 : 0,
-      });
-      groups.set(groupName, group);
-    }
-
+  function groupsToSlices(groups: Map<string, AllocGroup>): AllocationSlice[] {
     return [...groups.entries()]
       .map(([name, { value, costBasis, unrealizedGainLoss, instruments: instrs }]) => ({
         name,
@@ -204,7 +267,74 @@ export async function GET() {
       .sort((a, b) => b.value - a.value);
   }
 
-  const sectorAllocation = buildAllocation('sector');
+  function addToGroup(groups: Map<string, AllocGroup>, groupName: string, entry: {
+    name: string; isin: string; value: number; costBasis: number; unrealizedGainLoss: number;
+  }) {
+    const group = groups.get(groupName) ?? { value: 0, costBasis: 0, unrealizedGainLoss: 0, instruments: [] };
+    group.value += entry.value;
+    group.costBasis += entry.costBasis;
+    group.unrealizedGainLoss += entry.unrealizedGainLoss;
+    group.instruments.push({
+      name: entry.name,
+      isin: entry.isin,
+      value: entry.value,
+      percentage: classifiedTotal > 0 ? (entry.value / classifiedTotal) * 100 : 0,
+      costBasis: entry.costBasis,
+      unrealizedGainLoss: entry.unrealizedGainLoss,
+      unrealizedGainLossPercent: entry.costBasis > 0 ? (entry.unrealizedGainLoss / entry.costBasis) * 100 : 0,
+    });
+    groups.set(groupName, group);
+  }
+
+  // Sector allocation: decompose funds by sector weightings
+  function buildSectorAllocation(): AllocationSlice[] {
+    const groups = new Map<string, AllocGroup>();
+
+    for (const { instrument, value, costBasis, unrealizedGainLoss } of classified) {
+      addToGroup(groups, instrument.sector ?? 'Unknown', {
+        name: instrument.name, isin: instrument.isin, value, costBasis, unrealizedGainLoss,
+      });
+    }
+
+    for (const fund of decomposedFunds) {
+      for (const [sectorName, weight] of fund.fundData.holdings.sectorWeightings) {
+        const label = fund.fundData.ticker
+          ? `${fund.instrument.name} (via ${fund.fundData.ticker})`
+          : fund.instrument.name;
+        addToGroup(groups, sectorName, {
+          name: label,
+          isin: `${fund.instrument.isin}:${sectorName}`,
+          value: fund.value * weight,
+          costBasis: fund.costBasis * weight,
+          unrealizedGainLoss: fund.unrealizedGainLoss * weight,
+        });
+      }
+    }
+
+    return groupsToSlices(groups);
+  }
+
+  // Industry/Country allocation: funds as single "Diversified" entry
+  function buildAllocation(key: 'industry' | 'country'): AllocationSlice[] {
+    const groups = new Map<string, AllocGroup>();
+
+    for (const { instrument, value, costBasis, unrealizedGainLoss } of classified) {
+      addToGroup(groups, instrument[key] ?? 'Unknown', {
+        name: instrument.name, isin: instrument.isin, value, costBasis, unrealizedGainLoss,
+      });
+    }
+
+    for (const fund of decomposedFunds) {
+      addToGroup(groups, 'Diversified', {
+        name: fund.instrument.name, isin: fund.instrument.isin,
+        value: fund.value, costBasis: fund.costBasis, unrealizedGainLoss: fund.unrealizedGainLoss,
+      });
+    }
+
+    return groupsToSlices(groups);
+  }
+
+  const sectorAllocation = buildSectorAllocation();
   const industryAllocation = buildAllocation('industry');
   const countryAllocation = buildAllocation('country');
 
