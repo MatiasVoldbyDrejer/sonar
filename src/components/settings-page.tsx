@@ -29,7 +29,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import type { Instrument, Account, Transaction } from "@/types";
 import { EditInstrumentForm } from "@/components/edit-instrument-form";
@@ -484,6 +484,7 @@ function AddInstrumentForm({ onSuccess }: { onSuccess: () => void }) {
               <SelectItem value="stock">Stock</SelectItem>
               <SelectItem value="fund">Fund</SelectItem>
               <SelectItem value="etf">ETF</SelectItem>
+              <SelectItem value="crypto">Crypto</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -910,100 +911,277 @@ function ImportTab({
   };
 
   return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Import Transactions</CardTitle>
+        </CardHeader>
+        <CardContent style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <p style={{ fontSize: "0.875rem", color: "var(--muted-foreground)" }}>
+            Import transaction history from Nordnet (CSV) or Saxo Invest (XLSX).
+          </p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div>
+              <Label>Account</Label>
+              <Select value={accountId} onValueChange={setAccountId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((acc) => (
+                    <SelectItem key={acc.id} value={String(acc.id)}>
+                      {acc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="import-file">File</Label>
+              <Input
+                id="import-file"
+                type="file"
+                accept=".csv,.txt,.xlsx,.xls"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button
+              onClick={handlePreview}
+              variant="outline"
+              disabled={!file || !accountId}
+            >
+              Preview
+            </Button>
+            {preview && (
+              <Button onClick={handleCommit} disabled={importing}>
+                {importing
+                  ? "Importing..."
+                  : `Import ${preview.length} Transactions`}
+              </Button>
+            )}
+          </div>
+
+          {preview && preview.length > 0 && (
+            <div style={{ maxHeight: 384, overflow: "auto" }}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>ISIN</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead style={{ textAlign: "right" }}>Qty</TableHead>
+                    <TableHead style={{ textAlign: "right" }}>Price</TableHead>
+                    <TableHead style={{ textAlign: "right" }}>Fee</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {preview.map((tx, i) => (
+                    <TableRow key={i}>
+                      <TableCell>{tx.date}</TableCell>
+                      <TableCell>
+                        <Badge variant={tx.type === "buy" ? "default" : "secondary"}>
+                          {tx.type.toUpperCase()}
+                        </Badge>
+                      </TableCell>
+                      <TableCell style={{ fontFamily: "var(--font-mono, ui-monospace, monospace)", fontSize: "0.75rem" }}>
+                        {tx.isin}
+                      </TableCell>
+                      <TableCell>{tx.name}</TableCell>
+                      <TableCell style={{ textAlign: "right" }}>
+                        {tx.quantity.toFixed(2)}
+                      </TableCell>
+                      <TableCell style={{ textAlign: "right" }}>
+                        {tx.price.toFixed(2)}
+                      </TableCell>
+                      <TableCell style={{ textAlign: "right" }}>
+                        {tx.fee.toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <WalletImportSection accounts={accounts} onRefresh={onRefresh} />
+    </div>
+  );
+}
+
+// ─── Wallet Import Section ──────────────────────────────────────────
+
+const WALLET_CHAINS = [
+  { chainId: 1, name: "Ethereum" },
+  { chainId: 137, name: "Polygon" },
+  { chainId: 42161, name: "Arbitrum" },
+  { chainId: 10, name: "Optimism" },
+  { chainId: 8453, name: "Base" },
+  { chainId: 56, name: "BSC" },
+];
+
+function WalletImportSection({
+  accounts,
+  onRefresh,
+}: {
+  accounts: Account[];
+  onRefresh: () => void;
+}) {
+  const connectedWallets = accounts.filter(
+    (a) => a.broker === "metamask" && a.walletAddress
+  );
+  const [connecting, setConnecting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncResult, setLastSyncResult] = useState<string | null>(null);
+
+  const connectWallet = async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ethereum = (window as any).ethereum as {
+      request: (args: { method: string }) => Promise<string[]>;
+    } | undefined;
+    if (!ethereum) {
+      toast.error("MetaMask not detected. Please install MetaMask.");
+      return;
+    }
+    setConnecting(true);
+    try {
+      const ethAccounts = await ethereum.request({ method: "eth_requestAccounts" });
+      if (ethAccounts.length > 0) {
+        const address = ethAccounts[0];
+        // Persist to DB immediately
+        const res = await fetch("/api/wallet/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "connect", address }),
+        });
+        if (res.ok) {
+          toast.success("Wallet connected and saved");
+          onRefresh();
+          // Trigger initial sync
+          handleSync(address);
+        } else {
+          const data = await res.json();
+          toast.error(data.error || "Failed to save wallet");
+        }
+      }
+    } catch {
+      toast.error("Failed to connect wallet");
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleSync = async (address?: string) => {
+    setSyncing(true);
+    setLastSyncResult(null);
+    try {
+      let res: Response;
+      if (address) {
+        // Sync a specific wallet
+        res = await fetch("/api/wallet/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "sync",
+            address,
+            chains: WALLET_CHAINS.map((c) => c.chainId),
+          }),
+        });
+      } else {
+        // Sync all wallets
+        res = await fetch("/api/wallet/sync", { method: "POST" });
+      }
+      const data = await res.json();
+      if (res.ok) {
+        const msg = `${data.imported ?? 0} new, ${data.skipped ?? 0} existing`;
+        setLastSyncResult(msg);
+        if (data.imported > 0) {
+          toast.success(`Synced: ${data.imported} new transactions imported`);
+          onRefresh();
+        } else {
+          toast.info("Wallet synced — no new transactions");
+        }
+      } else {
+        toast.error(data.error || "Sync failed");
+      }
+    } catch {
+      toast.error("Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const truncateAddress = (addr: string) =>
+    `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+
+  return (
     <Card>
       <CardHeader>
-        <CardTitle>Import Transactions</CardTitle>
+        <CardTitle style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Wallet style={{ width: 20, height: 20 }} />
+          Crypto Wallet
+        </CardTitle>
       </CardHeader>
       <CardContent style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <p style={{ fontSize: "0.875rem", color: "var(--muted-foreground)" }}>
-          Import transaction history from Nordnet (CSV) or Saxo Invest (XLSX).
+          Connect MetaMask to automatically sync on-chain transactions from EVM chains via Etherscan.
+          Transactions are synced automatically every 5 minutes from the dashboard.
         </p>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <div>
-            <Label>Account</Label>
-            <Select value={accountId} onValueChange={setAccountId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select account" />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts.map((acc) => (
-                  <SelectItem key={acc.id} value={String(acc.id)}>
-                    {acc.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {connectedWallets.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {connectedWallets.map((wallet) => (
+              <div
+                key={wallet.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 12px",
+                  background: "var(--muted)",
+                  borderRadius: "var(--radius-md)",
+                  fontSize: "0.875rem",
+                }}
+              >
+                <Wallet style={{ width: 16, height: 16, color: "var(--muted-foreground)" }} />
+                <span style={{ fontFamily: "var(--font-mono, ui-monospace, monospace)" }}>
+                  {truncateAddress(wallet.walletAddress!)}
+                </span>
+                <Badge variant="outline" style={{ marginLeft: "auto" }}>Connected</Badge>
+              </div>
+            ))}
           </div>
-          <div>
-            <Label htmlFor="import-file">File</Label>
-            <Input
-              id="import-file"
-              type="file"
-              accept=".csv,.txt,.xlsx,.xls"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-            />
-          </div>
-        </div>
+        )}
 
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <Button
-            onClick={handlePreview}
+            onClick={connectWallet}
+            disabled={connecting}
             variant="outline"
-            disabled={!file || !accountId}
           >
-            Preview
+            {connecting ? "Connecting..." : connectedWallets.length > 0 ? "Add Another Wallet" : "Connect MetaMask"}
           </Button>
-          {preview && (
-            <Button onClick={handleCommit} disabled={importing}>
-              {importing
-                ? "Importing..."
-                : `Import ${preview.length} Transactions`}
+          {connectedWallets.length > 0 && (
+            <Button
+              onClick={() => handleSync()}
+              disabled={syncing}
+              variant="outline"
+            >
+              {syncing ? "Syncing..." : "Sync Now"}
             </Button>
           )}
         </div>
 
-        {preview && preview.length > 0 && (
-          <div style={{ maxHeight: 384, overflow: "auto" }}>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>ISIN</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead style={{ textAlign: "right" }}>Qty</TableHead>
-                  <TableHead style={{ textAlign: "right" }}>Price</TableHead>
-                  <TableHead style={{ textAlign: "right" }}>Fee</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {preview.map((tx, i) => (
-                  <TableRow key={i}>
-                    <TableCell>{tx.date}</TableCell>
-                    <TableCell>
-                      <Badge variant={tx.type === "buy" ? "default" : "secondary"}>
-                        {tx.type.toUpperCase()}
-                      </Badge>
-                    </TableCell>
-                    <TableCell style={{ fontFamily: "var(--font-mono, ui-monospace, monospace)", fontSize: "0.75rem" }}>
-                      {tx.isin}
-                    </TableCell>
-                    <TableCell>{tx.name}</TableCell>
-                    <TableCell style={{ textAlign: "right" }}>
-                      {tx.quantity.toFixed(2)}
-                    </TableCell>
-                    <TableCell style={{ textAlign: "right" }}>
-                      {tx.price.toFixed(2)}
-                    </TableCell>
-                    <TableCell style={{ textAlign: "right" }}>
-                      {tx.fee.toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+        {lastSyncResult && (
+          <p style={{ fontSize: "0.8125rem", color: "var(--muted-foreground)" }}>
+            Last sync: {lastSyncResult}
+          </p>
         )}
       </CardContent>
     </Card>
@@ -1094,6 +1272,7 @@ function AccountsTab({
               <SelectContent>
                 <SelectItem value="nordnet">Nordnet</SelectItem>
                 <SelectItem value="saxo">Saxo</SelectItem>
+                <SelectItem value="metamask">MetaMask</SelectItem>
               </SelectContent>
             </Select>
           </div>

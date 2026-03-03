@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -183,11 +183,32 @@ export function Dashboard() {
     }
   }, []);
 
+  // Wallet sync — runs once on mount, then every 5 minutes
+  const walletSyncRef = useRef(false);
+  const syncWallets = useCallback(async () => {
+    try {
+      await fetch("/api/wallet/sync", { method: "POST" });
+    } catch {
+      // silently handle — wallet sync is best-effort
+    }
+  }, []);
+
   useEffect(() => {
     fetchData(true);
+    // Initial wallet sync (once)
+    if (!walletSyncRef.current) {
+      walletSyncRef.current = true;
+      syncWallets().then(() => fetchData(false));
+    }
     const interval = setInterval(() => fetchData(false), 60_000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
+    const walletInterval = setInterval(() => {
+      syncWallets().then(() => fetchData(false));
+    }, 5 * 60_000); // sync wallets every 5 min
+    return () => {
+      clearInterval(interval);
+      clearInterval(walletInterval);
+    };
+  }, [fetchData, syncWallets]);
 
   const allActivePositions = positions.filter((p) => p.quantity > 0);
 

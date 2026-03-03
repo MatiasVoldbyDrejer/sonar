@@ -232,6 +232,7 @@ export function EditInstrumentForm({
               <SelectItem value="stock">Stock</SelectItem>
               <SelectItem value="fund">Fund</SelectItem>
               <SelectItem value="etf">ETF</SelectItem>
+              <SelectItem value="crypto">Crypto</SelectItem>
             </SelectContent>
           </Select>
         </div>

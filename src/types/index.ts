@@ -4,7 +4,7 @@ export interface Instrument {
   yahooSymbol: string | null;
   ticker: string | null;
   name: string;
-  type: 'stock' | 'fund' | 'etf';
+  type: 'stock' | 'fund' | 'etf' | 'crypto';
   currency: string;
   exchange: string | null;
   hasQuoteSource: boolean;
@@ -16,7 +16,8 @@ export interface Instrument {
 export interface Account {
   id: number;
   name: string;
-  broker: 'saxo' | 'nordnet';
+  broker: 'saxo' | 'nordnet' | 'metamask';
+  walletAddress: string | null;
 }
 
 export interface Transaction {

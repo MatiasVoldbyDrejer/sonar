@@ -23,7 +23,7 @@ function initSchema(db: Database.Database) {
       yahoo_symbol TEXT,
       ticker TEXT,
       name TEXT NOT NULL,
-      type TEXT NOT NULL CHECK(type IN ('stock', 'fund', 'etf')),
+      type TEXT NOT NULL CHECK(type IN ('stock', 'fund', 'etf', 'crypto')),
       currency TEXT NOT NULL,
       exchange TEXT,
       has_quote_source INTEGER DEFAULT 1
@@ -32,7 +32,8 @@ function initSchema(db: Database.Database) {
     CREATE TABLE IF NOT EXISTS accounts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
-      broker TEXT NOT NULL CHECK(broker IN ('saxo', 'nordnet'))
+      broker TEXT NOT NULL CHECK(broker IN ('saxo', 'nordnet', 'metamask')),
+      wallet_address TEXT
     );
 
     CREATE TABLE IF NOT EXISTS transactions (
@@ -89,6 +90,70 @@ function initSchema(db: Database.Database) {
   if (!colNames.has('industry')) db.exec('ALTER TABLE instruments ADD COLUMN industry TEXT');
   if (!colNames.has('country')) db.exec('ALTER TABLE instruments ADD COLUMN country TEXT');
 
+  // Migrate: widen CHECK constraints for crypto/metamask support
+  // Uses transactions to be atomic — no orphaned _old tables on crash
+  const tableExists = (name: string) =>
+    !!(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name));
+
+  // Clean up any leftover _old tables from previous failed migrations
+  if (tableExists('instruments_old') && tableExists('instruments')) {
+    db.exec('DROP TABLE instruments_old');
+  } else if (tableExists('instruments_old') && !tableExists('instruments')) {
+    db.exec('ALTER TABLE instruments_old RENAME TO instruments');
+  }
+  if (tableExists('accounts_old') && tableExists('accounts')) {
+    db.exec('DROP TABLE accounts_old');
+  } else if (tableExists('accounts_old') && !tableExists('accounts')) {
+    db.exec('ALTER TABLE accounts_old RENAME TO accounts');
+  }
+
+  const instrumentSql = (db.prepare("SELECT sql FROM sqlite_master WHERE name='instruments'").get() as { sql: string } | undefined)?.sql ?? '';
+  if (instrumentSql && !instrumentSql.includes("'crypto'")) {
+    db.pragma('foreign_keys = OFF');
+    db.transaction(() => {
+      db.exec(`ALTER TABLE instruments RENAME TO instruments_old`);
+      db.exec(`CREATE TABLE instruments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        isin TEXT UNIQUE NOT NULL,
+        yahoo_symbol TEXT,
+        ticker TEXT,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('stock', 'fund', 'etf', 'crypto')),
+        currency TEXT NOT NULL,
+        exchange TEXT,
+        has_quote_source INTEGER DEFAULT 1,
+        sector TEXT,
+        industry TEXT,
+        country TEXT
+      )`);
+      db.exec(`INSERT INTO instruments SELECT * FROM instruments_old`);
+      db.exec(`DROP TABLE instruments_old`);
+    })();
+    db.pragma('foreign_keys = ON');
+  }
+
+  const accountSql = (db.prepare("SELECT sql FROM sqlite_master WHERE name='accounts'").get() as { sql: string } | undefined)?.sql ?? '';
+  if (accountSql && !accountSql.includes("'metamask'")) {
+    db.pragma('foreign_keys = OFF');
+    db.transaction(() => {
+      db.exec(`ALTER TABLE accounts RENAME TO accounts_old`);
+      db.exec(`CREATE TABLE accounts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        broker TEXT NOT NULL CHECK(broker IN ('saxo', 'nordnet', 'metamask')),
+        wallet_address TEXT
+      )`);
+      db.exec(`INSERT INTO accounts (id, name, broker) SELECT id, name, broker FROM accounts_old`);
+      db.exec(`DROP TABLE accounts_old`);
+    })();
+    db.pragma('foreign_keys = ON');
+  }
+
+  // Migrate: add wallet_address column to accounts if missing
+  const accCols = db.prepare("PRAGMA table_info(accounts)").all() as Array<{ name: string }>;
+  const accColNames = new Set(accCols.map(c => c.name));
+  if (!accColNames.has('wallet_address')) db.exec('ALTER TABLE accounts ADD COLUMN wallet_address TEXT');
+
   // Seed default accounts if empty
   const count = db.prepare('SELECT COUNT(*) as count FROM accounts').get() as { count: number };
   if (count.count === 0) {
@@ -106,7 +171,7 @@ export function mapInstrumentRow(row: Record<string, unknown>) {
     yahooSymbol: row.yahoo_symbol as string | null,
     ticker: row.ticker as string | null,
     name: row.name as string,
-    type: row.type as 'stock' | 'fund' | 'etf',
+    type: row.type as 'stock' | 'fund' | 'etf' | 'crypto',
     currency: row.currency as string,
     exchange: row.exchange as string | null,
     hasQuoteSource: Boolean(row.has_quote_source),
@@ -136,7 +201,8 @@ export function mapAccountRow(row: Record<string, unknown>) {
   return {
     id: row.id as number,
     name: row.name as string,
-    broker: row.broker as 'saxo' | 'nordnet',
+    broker: row.broker as 'saxo' | 'nordnet' | 'metamask',
+    walletAddress: (row.wallet_address as string) ?? null,
   };
 }
 
