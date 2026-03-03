@@ -117,10 +117,23 @@ export function aggregatePositions(
     const instrument = instruments.get(instrumentId);
     if (!instrument) continue;
 
-    const result = computePosition(txs);
+    const currency = instrument.currency;
+
+    // Convert fees from fee_currency to instrument currency before FIFO calculation
+    const adjustedTxs = txs.map(tx => {
+      if (tx.fee > 0 && tx.feeCurrency && tx.feeCurrency !== currency) {
+        const feeRate = tx.feeCurrency === reportingCurrency
+          ? 1.0
+          : (historicalRates.get(`${tx.feeCurrency}:${tx.date}`) ?? 1.0);
+        const instrumentRate = historicalRates.get(`${currency}:${tx.date}`) ?? 1.0;
+        return { ...tx, fee: instrumentRate > 0 ? (tx.fee * feeRate) / instrumentRate : tx.fee };
+      }
+      return tx;
+    });
+
+    const result = computePosition(adjustedTxs);
     if (result.quantity === 0 && result.realizedGainLoss === 0 && result.totalDividends === 0) continue;
 
-    const currency = instrument.currency;
     const currentFxRate = currentRates.get(currency) ?? 1.0;
 
     // Convert cost basis to reporting currency using historical rates per lot
