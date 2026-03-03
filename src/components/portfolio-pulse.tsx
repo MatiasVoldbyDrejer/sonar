@@ -9,7 +9,6 @@ import {
   Sparkles,
   Zap,
   Newspaper,
-  CircleCheck,
   RefreshCw,
   Activity,
 } from "lucide-react";
@@ -155,11 +154,8 @@ export function PortfolioPulse({ onItemsLoaded }: PortfolioPulseProps) {
             Portfolio Pulse
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <CircleCheck style={{ height: "1.25rem", width: "1.25rem", color: "var(--primary)", flexShrink: 0 }} />
-          <div>
-            <p style={{ fontSize: "0.875rem" }}>{state.summary ?? "All quiet — nothing needs your attention right now."}</p>
-          </div>
+        <div>
+          <p style={{ fontSize: "0.875rem" }}>{state.summary ?? "All quiet — nothing needs your attention right now."}</p>
         </div>
         <PulseFooter createdAt={state.createdAt} onRefresh={generate} />
       </motion.div>
