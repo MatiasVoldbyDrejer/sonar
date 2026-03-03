@@ -372,14 +372,14 @@ export function ChatView({ chat }: ChatViewProps) {
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 4,
-                    fontSize: 10,
-                    fontWeight: 400,
+                    fontSize: 12,
+                    fontWeight: 500,
                     color: "var(--color-muted-foreground)",
                     background: "none",
                     border: "none",
                     padding: "4px 0",
                     cursor: "pointer",
-                    font: "inherit",
+                    fontFamily: "inherit",
                   }}
                 >
                   {AGENTS.find((a) => a.id === currentAgent)?.label}

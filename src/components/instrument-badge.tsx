@@ -37,6 +37,7 @@ interface InstrumentBadgeProps {
   showName?: boolean;
   linked?: boolean;
   size?: "sm" | "lg";
+  align?: "center" | "top";
   children?: ReactNode;
 }
 
@@ -51,6 +52,7 @@ export function InstrumentBadge({
   showName = true,
   linked = true,
   size = "sm",
+  align = "center",
   children,
 }: InstrumentBadgeProps) {
   const { getPositions } = usePositionLookup();
@@ -105,7 +107,7 @@ export function InstrumentBadge({
     <span
       style={{
         display: "inline-flex",
-        alignItems: "center",
+        alignItems: align === "top" ? "flex-start" : "center",
         gap: 4,
         verticalAlign: "middle",
         marginBottom: 3,

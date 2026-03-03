@@ -86,6 +86,40 @@ function SortableHead({
   );
 }
 
+function mergePositionsByInstrument(positions: Position[]): Position[] {
+  const byIsin = new Map<string, Position[]>();
+  for (const p of positions) {
+    const key = p.instrument.isin;
+    if (!byIsin.has(key)) byIsin.set(key, []);
+    byIsin.get(key)!.push(p);
+  }
+  const merged: Position[] = [];
+  for (const group of byIsin.values()) {
+    if (group.length === 1) {
+      merged.push(group[0]);
+      continue;
+    }
+    merged.push({
+      instrument: group[0].instrument,
+      accountId: 0,
+      accountName: group.map((p) => p.accountName).join(", "),
+      quantity: group.reduce((s, p) => s + p.quantity, 0),
+      costBasis: group.reduce((s, p) => s + p.costBasis, 0),
+      averagePrice: 0,
+      realizedGainLoss: group.reduce((s, p) => s + p.realizedGainLoss, 0),
+      unrealizedGainLoss: group.reduce((s, p) => s + p.unrealizedGainLoss, 0),
+      currentPrice: group[0].currentPrice,
+      currentValue: group.reduce((s, p) => s + (p.currentValue ?? 0), 0),
+      dayChange: group.some((p) => p.dayChange !== null)
+        ? group.reduce((s, p) => s + (p.dayChange ?? 0), 0)
+        : null,
+      dayChangePercent: group[0].dayChangePercent,
+      reportingCurrency: 'DKK',
+    });
+  }
+  return merged;
+}
+
 function sortPositions(
   positions: Position[],
   sort: { key: SortKey; dir: 'asc' | 'desc' },
@@ -162,7 +196,10 @@ export function Dashboard() {
       ? positions
       : positions.filter((p) => p.accountId === Number(accountFilter));
 
-  const activePositions = filteredPositions.filter((p) => p.quantity > 0);
+  const activePositions = useMemo(() => {
+    const active = filteredPositions.filter((p) => p.quantity > 0);
+    return accountFilter === "all" ? mergePositionsByInstrument(active) : active;
+  }, [filteredPositions, accountFilter]);
 
   const handleSort = useCallback((key: SortKey) => {
     setSort((prev) =>
@@ -185,10 +222,10 @@ export function Dashboard() {
     [activePositions, sort, totalValue]
   );
 
-  const closedPositions = useMemo(
-    () => filteredPositions.filter((p) => p.quantity === 0 && p.realizedGainLoss !== 0),
-    [filteredPositions]
-  );
+  const closedPositions = useMemo(() => {
+    const closed = filteredPositions.filter((p) => p.quantity === 0 && p.realizedGainLoss !== 0);
+    return accountFilter === "all" ? mergePositionsByInstrument(closed) : closed;
+  }, [filteredPositions, accountFilter]);
 
   const instrumentLookup = useMemo(() => {
     const lookup: Record<number, string> = {};
@@ -308,7 +345,7 @@ export function Dashboard() {
                         return (
                           <TableRow key={i} data-hover="table-row">
                             <TableCell style={{ paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>
-                              <InstrumentBadge instrument={p.instrument} position={p}>
+                              <InstrumentBadge instrument={p.instrument} position={p} align="top">
                                 <div>
                                   <div style={{ fontWeight: 500, fontSize: 14, display: "flex", alignItems: "center", gap: 6 }}>
                                     {pulseIsins.has(p.instrument.isin) && (
@@ -369,9 +406,13 @@ export function Dashboard() {
                               {portfolioWeight(p.currentValue ?? 0, totalValue)}
                             </TableCell>
                             <TableCell style={{ paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>
-                              <Badge variant="outline">
-                                {p.accountName}
-                              </Badge>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                                {p.accountName.split(", ").map((name) => (
+                                  <Badge key={name} variant="outline">
+                                    {name}
+                                  </Badge>
+                                ))}
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -412,7 +453,7 @@ export function Dashboard() {
                       {closedPositions.map((p, i) => (
                         <TableRow key={i} data-hover="table-row">
                           <TableCell style={{ paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>
-                            <InstrumentBadge instrument={p.instrument} position={p}>
+                            <InstrumentBadge instrument={p.instrument} position={p} align="top">
                               <div>
                                 <div style={{ fontWeight: 500, fontSize: 14 }}>
                                   {p.instrument.ticker || p.instrument.isin}
