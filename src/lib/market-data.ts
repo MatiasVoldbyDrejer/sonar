@@ -118,15 +118,23 @@ export async function getChart(symbol: string, period: string = '1y'): Promise<C
 export async function searchSymbol(query: string) {
   try {
     const results: any = await yf.search(query, { quotesCount: 10, newsCount: 0 });
-    return (results.quotes || []).map((q: any) => ({
-      symbol: q.symbol as string,
-      name: (q.shortname || q.longname || '') as string,
-      exchange: (q.exchDisp || q.exchange || '') as string,
-      type: (q.quoteType || '') as string,
-    }));
-  } catch {
+    return mapSearchQuotes(results.quotes || []);
+  } catch (err: any) {
+    // yahoo-finance2 throws validation errors but includes parsed data in err.result
+    if (err?.result?.quotes) {
+      return mapSearchQuotes(err.result.quotes);
+    }
     return [];
   }
+}
+
+function mapSearchQuotes(quotes: any[]) {
+  return quotes.map((q: any) => ({
+    symbol: q.symbol as string,
+    name: (q.shortname || q.longname || '') as string,
+    exchange: (q.exchDisp || q.exchange || '') as string,
+    type: (q.quoteType || '') as string,
+  }));
 }
 
 export async function getAssetProfile(symbol: string): Promise<{ sector: string; industry: string; country: string } | null> {

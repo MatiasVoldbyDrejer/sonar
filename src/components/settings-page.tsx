@@ -353,15 +353,34 @@ function AddInstrumentForm({ onSuccess }: { onSuccess: () => void }) {
     }
   };
 
-  const selectResult = (result: {
+  const quoteTypeMap: Record<string, string> = {
+    EQUITY: "stock",
+    ETF: "etf",
+    MUTUALFUND: "fund",
+    CRYPTOCURRENCY: "crypto",
+  };
+
+  const selectResult = async (result: {
     symbol: string;
     name: string;
     exchange: string;
+    type: string;
   }) => {
     setYahooSymbol(result.symbol);
+    setTicker(result.symbol.replace(/\..*$/, ""));
     if (!name) setName(result.name);
     if (result.exchange) setExchange(result.exchange);
+    if (result.type && quoteTypeMap[result.type]) setType(quoteTypeMap[result.type]);
     setSearchResults([]);
+    // Fetch currency from quote endpoint
+    try {
+      const res = await fetch(`/api/quotes/${encodeURIComponent(result.symbol)}`);
+      if (res.ok) {
+        const quote = await res.json();
+        const cur = quote.quote?.currency || quote.currency;
+        if (cur) setCurrency(cur);
+      }
+    } catch { /* ignore — user can set manually */ }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
