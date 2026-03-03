@@ -330,7 +330,7 @@ export function ChatView({ chat }: ChatViewProps) {
               background: "rgba(255, 255, 255, 0.04)",
               backdropFilter: "blur(20px)",
               WebkitBackdropFilter: "blur(20px)",
-              boxShadow: "0 4px 24px rgba(0, 0, 0, 0.3)",
+              boxShadow: "0 0 4px 2pxrgba(0, 0, 0, 0.08)",
               padding: "12px 16px",
             }}
           >
