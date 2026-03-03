@@ -102,17 +102,17 @@ export async function getCurrentRate(from: string, to: string): Promise<number> 
 }
 
 /**
- * Get current FX rates for multiple currencies to DKK.
- * Returns a map of currency → DKK rate.
+ * Get current FX rates for multiple currencies to a target currency.
+ * Returns a map of currency → target rate.
  */
-export async function getBatchCurrentRates(currencies: string[]): Promise<Map<string, number>> {
+export async function getBatchCurrentRates(currencies: string[], targetCurrency = 'DKK'): Promise<Map<string, number>> {
   const rates = new Map<string, number>();
-  rates.set('DKK', 1.0);
+  rates.set(targetCurrency, 1.0);
 
-  const nonDkk = currencies.filter(c => c !== 'DKK');
+  const needsConversion = currencies.filter(c => c !== targetCurrency);
   await Promise.allSettled(
-    nonDkk.map(async (currency) => {
-      const rate = await getCurrentRate(currency, 'DKK');
+    needsConversion.map(async (currency) => {
+      const rate = await getCurrentRate(currency, targetCurrency);
       rates.set(currency, rate);
     })
   );
@@ -121,26 +121,27 @@ export async function getBatchCurrentRates(currencies: string[]): Promise<Map<st
 }
 
 /**
- * Get historical FX rates for a set of (currency, date) pairs to DKK.
- * Returns a map of "currency:date" → DKK rate.
+ * Get historical FX rates for a set of (currency, date) pairs to a target currency.
+ * Returns a map of "currency:date" → target rate.
  */
 export async function getBatchHistoricalRates(
-  pairs: Array<{ currency: string; date: string }>
+  pairs: Array<{ currency: string; date: string }>,
+  targetCurrency = 'DKK'
 ): Promise<Map<string, number>> {
   const rates = new Map<string, number>();
 
-  const nonDkk = pairs.filter(p => p.currency !== 'DKK');
+  const needsConversion = pairs.filter(p => p.currency !== targetCurrency);
 
   // Deduplicate
   const unique = new Map<string, { currency: string; date: string }>();
-  for (const p of nonDkk) {
+  for (const p of needsConversion) {
     const key = `${p.currency}:${p.date}`;
     unique.set(key, p);
   }
 
   await Promise.allSettled(
     [...unique.entries()].map(async ([key, { currency, date }]) => {
-      const rate = await getHistoricalRate(currency, 'DKK', date);
+      const rate = await getHistoricalRate(currency, targetCurrency, date);
       rates.set(key, rate);
     })
   );

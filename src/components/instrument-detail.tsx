@@ -27,8 +27,8 @@ function formatCurrency(value: number, currency: string): string {
   }).format(value);
 }
 
-function formatDKK(value: number): string {
-  return formatCurrency(value, "DKK");
+function formatReporting(value: number, currency: string): string {
+  return formatCurrency(value, currency);
 }
 
 function formatNumber(value: number | null): string {
@@ -144,6 +144,8 @@ export function InstrumentDetail({ isin }: { isin: string }) {
     );
   }
 
+  const reportingCurrency = positions[0]?.reportingCurrency ?? 'DKK';
+
   const totalPosition = positions.reduce(
     (acc, p) => ({
       quantity: acc.quantity + p.quantity,
@@ -217,7 +219,7 @@ export function InstrumentDetail({ isin }: { isin: string }) {
           <Card>
             <CardHeader>
               <CardTitle style={{ fontSize: 14, fontWeight: 500, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                Your Position (DKK)
+                Your Position ({reportingCurrency})
               </CardTitle>
             </CardHeader>
             <CardContent style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 14 }}>
@@ -227,16 +229,16 @@ export function InstrumentDetail({ isin }: { isin: string }) {
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--muted-foreground)" }}>Cost Basis</span>
-                <span style={{ fontVariantNumeric: "tabular-nums" }}>{formatDKK(totalPosition.costBasis)}</span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>{formatReporting(totalPosition.costBasis, reportingCurrency)}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--muted-foreground)" }}>Market Value</span>
-                <span style={{ fontVariantNumeric: "tabular-nums" }}>{formatDKK(totalPosition.currentValue)}</span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>{formatReporting(totalPosition.currentValue, reportingCurrency)}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--muted-foreground)" }}>Unrealized P/L</span>
                 <span style={{ fontVariantNumeric: "tabular-nums", color: glColor(totalPosition.unrealizedGainLoss) }}>
-                  {formatDKK(totalPosition.unrealizedGainLoss)}
+                  {formatReporting(totalPosition.unrealizedGainLoss, reportingCurrency)}
                   {totalPosition.costBasis > 0 &&
                     ` (${((totalPosition.unrealizedGainLoss / totalPosition.costBasis) * 100).toFixed(2)}%)`}
                 </span>
@@ -244,7 +246,7 @@ export function InstrumentDetail({ isin }: { isin: string }) {
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--muted-foreground)" }}>Realized P/L</span>
                 <span style={{ fontVariantNumeric: "tabular-nums", color: glColor(totalPosition.realizedGainLoss) }}>
-                  {formatDKK(totalPosition.realizedGainLoss)}
+                  {formatReporting(totalPosition.realizedGainLoss, reportingCurrency)}
                 </span>
               </div>
             </CardContent>

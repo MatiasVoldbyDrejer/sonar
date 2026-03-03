@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, AlertTriangle } from "lucide-react";
-import { formatDKK, formatPercent } from "@/lib/utils";
+import { formatAmount, formatPercent } from "@/lib/utils";
 import { fadeIn } from "@/lib/motion";
 import { AnimatedNumber } from "@/components/animated-number";
 import { DeepDiveSkeleton } from "@/components/skeleton-shimmer";
@@ -52,10 +52,11 @@ function scoreColor(s: number): string {
 // --- Summary Stats ---
 
 function SummaryStats({ data }: { data: DeepDiveData }) {
+  const rc = data.reportingCurrency ?? 'DKK';
   const stats = [
-    { label: "Cost Basis", value: formatDKK(data.totalCostBasis) },
-    { label: "Unrealized P/L", value: formatDKK(data.totalUnrealizedGainLoss), color: glColor(data.totalUnrealizedGainLoss) },
-    { label: "Realized P/L", value: formatDKK(data.totalRealizedGainLoss), color: glColor(data.totalRealizedGainLoss) },
+    { label: "Cost Basis", value: formatAmount(data.totalCostBasis, rc) },
+    { label: "Unrealized P/L", value: formatAmount(data.totalUnrealizedGainLoss, rc), color: glColor(data.totalUnrealizedGainLoss) },
+    { label: "Realized P/L", value: formatAmount(data.totalRealizedGainLoss, rc), color: glColor(data.totalRealizedGainLoss) },
     { label: "Top 5 Concentration", value: `${data.top5Concentration.toFixed(1)}%` },
   ];
 
@@ -99,7 +100,7 @@ function SummaryStats({ data }: { data: DeepDiveData }) {
 
 // --- Top Holdings Bar ---
 
-function TopHoldingsBar({ data }: { data: DeepDiveData }) {
+function TopHoldingsBar({ data, currency }: { data: DeepDiveData; currency: string }) {
   if (data.topHoldings.length === 0) return null;
 
   return (
@@ -174,7 +175,7 @@ function TopHoldingsBar({ data }: { data: DeepDiveData }) {
               minWidth: 90,
               textAlign: "right",
             }}>
-              {formatDKK(h.value)}
+              {formatAmount(h.value, currency)}
             </span>
             <span style={{
               fontSize: 12,
@@ -315,50 +316,52 @@ function DiversificationGauge({
 
 // --- Active shape for donut hover ---
 
-function renderActiveShape(props: any) {
-  const {
-    cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill,
-    payload, percent,
-  } = props;
+function makeActiveShape(currency: string) {
+  return function renderActiveShape(props: any) {
+    const {
+      cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill,
+      payload, percent,
+    } = props;
 
-  return (
-    <g>
-      <Sector
-        cx={cx} cy={cy}
-        innerRadius={innerRadius - 2}
-        outerRadius={outerRadius + 6}
-        startAngle={startAngle}
-        endAngle={endAngle}
-        fill={fill}
-      />
-      <text
-        x={cx} y={cy - 14}
-        textAnchor="middle"
-        style={{ fontSize: 14, fontWeight: 600, fill: "var(--foreground)" }}
-      >
-        {payload.name}
-      </text>
-      <text
-        x={cx} y={cy + 6}
-        textAnchor="middle"
-        style={{ fontSize: 12, fill: "var(--muted-foreground)" }}
-      >
-        {(percent * 100).toFixed(1)}%
-      </text>
-      <text
-        x={cx} y={cy + 22}
-        textAnchor="middle"
-        style={{ fontSize: 11, fontVariantNumeric: "tabular-nums", fill: "var(--muted-foreground)" }}
-      >
-        {formatDKK(payload.value)}
-      </text>
-    </g>
-  );
+    return (
+      <g>
+        <Sector
+          cx={cx} cy={cy}
+          innerRadius={innerRadius - 2}
+          outerRadius={outerRadius + 6}
+          startAngle={startAngle}
+          endAngle={endAngle}
+          fill={fill}
+        />
+        <text
+          x={cx} y={cy - 14}
+          textAnchor="middle"
+          style={{ fontSize: 14, fontWeight: 600, fill: "var(--foreground)" }}
+        >
+          {payload.name}
+        </text>
+        <text
+          x={cx} y={cy + 6}
+          textAnchor="middle"
+          style={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+        >
+          {(percent * 100).toFixed(1)}%
+        </text>
+        <text
+          x={cx} y={cy + 22}
+          textAnchor="middle"
+          style={{ fontSize: 11, fontVariantNumeric: "tabular-nums", fill: "var(--muted-foreground)" }}
+        >
+          {formatAmount(payload.value, currency)}
+        </text>
+      </g>
+    );
+  };
 }
 
 // --- Donut center content when not hovered ---
 
-function DonutCenterText({ slices, tabLabel, totalValue }: { slices: AllocationSlice[]; tabLabel: string; totalValue: number }) {
+function DonutCenterText({ slices, tabLabel, totalValue, currency }: { slices: AllocationSlice[]; tabLabel: string; totalValue: number; currency: string }) {
   return (
     <g>
       <text
@@ -386,7 +389,7 @@ function DonutCenterText({ slices, tabLabel, totalValue }: { slices: AllocationS
           fill: "var(--foreground)",
         }}
       >
-        {formatDKK(totalValue)}
+        {formatAmount(totalValue, currency)}
       </text>
     </g>
   );
@@ -400,12 +403,14 @@ function AllocationDonut({
   onHover,
   tabLabel,
   totalValue,
+  currency,
 }: {
   slices: AllocationSlice[];
   activeIndex: number | undefined;
   onHover: (index: number | undefined) => void;
   tabLabel: string;
   totalValue: number;
+  currency: string;
 }) {
   const data = slices.map((s) => ({ name: s.name, value: s.value }));
 
@@ -420,7 +425,7 @@ function AllocationDonut({
           outerRadius={110}
           dataKey="value"
           activeIndex={activeIndex}
-          activeShape={renderActiveShape}
+          activeShape={makeActiveShape(currency)}
           onMouseEnter={(_, index) => onHover(index)}
           onMouseLeave={() => onHover(undefined)}
           strokeWidth={2}
@@ -434,7 +439,7 @@ function AllocationDonut({
           ))}
         </Pie>
         {activeIndex === undefined && (
-          <DonutCenterText slices={slices} tabLabel={tabLabel} totalValue={totalValue} />
+          <DonutCenterText slices={slices} tabLabel={tabLabel} totalValue={totalValue} currency={currency} />
         )}
       </PieChart>
     </ResponsiveContainer>
@@ -447,10 +452,12 @@ function AllocationList({
   slices,
   activeIndex,
   onHover,
+  currency,
 }: {
   slices: AllocationSlice[];
   activeIndex: number | undefined;
   onHover: (index: number | undefined) => void;
+  currency: string;
 }) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
@@ -533,7 +540,7 @@ function AllocationList({
                 minWidth: 90,
                 textAlign: "right",
               }}>
-                {formatDKK(slice.value)}
+                {formatAmount(slice.value, currency)}
               </span>
               {/* Unrealized P/L % */}
               <span style={{
@@ -610,7 +617,7 @@ function AllocationList({
                           minWidth: 90,
                           textAlign: "right",
                         }}>
-                          {formatDKK(inst.value)}
+                          {formatAmount(inst.value, currency)}
                         </span>
                         <span style={{
                           fontSize: 12,
@@ -663,6 +670,7 @@ export function DeepDive() {
   };
   const currentSlices = allocationMap[activeTab];
   const currentTabLabel = tabs.find((t) => t.key === activeTab)?.label ?? activeTab;
+  const rc = data.reportingCurrency ?? 'DKK';
 
   return (
     <motion.div
@@ -693,6 +701,7 @@ export function DeepDive() {
             </p>
             <AnimatedNumber
               value={data.totalValue}
+              currency={rc}
               style={{
                 fontSize: 48,
                 fontWeight: 600,
@@ -706,11 +715,11 @@ export function DeepDive() {
                 fontVariantNumeric: "tabular-nums",
                 color: glColor(data.totalUnrealizedGainLoss),
               }}>
-                {formatDKK(data.totalUnrealizedGainLoss)} ({formatPercent(data.totalUnrealizedGainLossPercent)})
+                {formatAmount(data.totalUnrealizedGainLoss, rc)} ({formatPercent(data.totalUnrealizedGainLossPercent)})
               </span>
             </div>
             <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 4 }}>
-              Cost basis {formatDKK(data.totalCostBasis)} · {data.holdingCount} holding{data.holdingCount !== 1 ? "s" : ""}
+              Cost basis {formatAmount(data.totalCostBasis, rc)} · {data.holdingCount} holding{data.holdingCount !== 1 ? "s" : ""}
             </p>
           </div>
 
@@ -745,7 +754,7 @@ export function DeepDive() {
         <SummaryStats data={data} />
 
         {/* Top Holdings */}
-        <TopHoldingsBar data={data} />
+        <TopHoldingsBar data={data} currency={rc} />
 
         {/* Tab switcher */}
         <motion.div {...fadeUp}>
@@ -819,6 +828,7 @@ export function DeepDive() {
                   onHover={setActiveIndex}
                   tabLabel={currentTabLabel}
                   totalValue={data.totalValue}
+                  currency={rc}
                 />
               </div>
               <div style={{
@@ -831,6 +841,7 @@ export function DeepDive() {
                   slices={currentSlices}
                   activeIndex={activeIndex}
                   onHover={setActiveIndex}
+                  currency={rc}
                 />
               </div>
             </div>
@@ -864,7 +875,7 @@ export function DeepDive() {
                 fontWeight: 600,
                 color: "var(--muted-foreground)",
               }}>
-                Unclassified ({formatDKK(data.unclassifiedValue)})
+                Unclassified ({formatAmount(data.unclassifiedValue, rc)})
               </h3>
             </div>
             <p style={{
@@ -893,7 +904,7 @@ export function DeepDive() {
                     fontVariantNumeric: "tabular-nums",
                     fontFamily: "var(--font-mono)",
                   }}>
-                    {formatDKK(inst.value)}
+                    {formatAmount(inst.value, rc)}
                   </span>
                 </div>
               ))}

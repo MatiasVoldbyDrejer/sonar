@@ -74,6 +74,12 @@ function initSchema(db: Database.Database) {
       updated_at TEXT DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_chats_date ON chats(date);
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('reporting_currency', 'DKK');
   `);
 
   // Migrate: add classification columns to instruments
@@ -132,4 +138,15 @@ export function mapAccountRow(row: Record<string, unknown>) {
     name: row.name as string,
     broker: row.broker as 'saxo' | 'nordnet',
   };
+}
+
+export function getSetting(key: string): string | null {
+  const db = getDb();
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+export function setSetting(key: string, value: string): void {
+  const db = getDb();
+  db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
 }

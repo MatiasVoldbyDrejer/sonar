@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { formatDKK } from "@/lib/utils";
+import { formatAmount } from "@/lib/utils";
 import {
   ChartContainer,
   ChartTooltip,
@@ -95,9 +95,11 @@ function TradeActiveDot(props: any) {
 function PortfolioChartTooltip({
   active,
   payload,
+  reportingCurrency = "DKK",
 }: {
   active?: boolean;
   payload?: Array<{ payload: ChartDataPointWithTrades }>;
+  reportingCurrency?: string;
 }) {
   if (!active || !payload?.length) return null;
 
@@ -129,7 +131,7 @@ function PortfolioChartTooltip({
         })}
       </div>
       <div style={{ fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>
-        {formatDKK(point.close)}
+        {formatAmount(point.close, reportingCurrency)}
       </div>
 
       {point.trades && point.trades.length > 0 && (
@@ -195,6 +197,14 @@ export function PortfolioChart({
   const [data, setData] = useState<ChartDataPointWithTrades[]>([]);
   const [period, setPeriod] = useState("1y");
   const [loading, setLoading] = useState(true);
+  const [reportingCurrency, setReportingCurrency] = useState("DKK");
+
+  useEffect(() => {
+    fetch("/api/settings/currency")
+      .then((r) => r.json())
+      .then((d) => setReportingCurrency(d.currency ?? "DKK"))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -357,7 +367,7 @@ export function PortfolioChart({
                   tickFormatter={(val) =>
                     new Intl.NumberFormat("da-DK", {
                       style: "currency",
-                      currency: "DKK",
+                      currency: reportingCurrency,
                       notation: "compact",
                     }).format(val)
                   }
@@ -368,7 +378,7 @@ export function PortfolioChart({
                   domain={["auto", "auto"]}
                 />
                 <ChartTooltip
-                  content={<PortfolioChartTooltip />}
+                  content={<PortfolioChartTooltip reportingCurrency={reportingCurrency} />}
                 />
                 <Area
                   type="monotone"

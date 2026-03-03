@@ -16,7 +16,7 @@ import {
 import { ChevronDown, ChevronUp, ChevronsUpDown, ChevronRight } from "lucide-react";
 import type { Position, Account, Transaction } from "@/types";
 import Link from "next/link";
-import { formatDKK, formatPercent, portfolioWeight } from "@/lib/utils";
+import { formatAmount, formatPercent, portfolioWeight } from "@/lib/utils";
 import { fadeIn } from "@/lib/motion";
 import { AnimatedNumber } from "@/components/animated-number";
 import { Sparkline } from "@/components/sparkline";
@@ -114,7 +114,7 @@ function mergePositionsByInstrument(positions: Position[]): Position[] {
         ? group.reduce((s, p) => s + (p.dayChange ?? 0), 0)
         : null,
       dayChangePercent: group[0].dayChangePercent,
-      reportingCurrency: 'DKK',
+      reportingCurrency: group[0].reportingCurrency,
     });
   }
   return merged;
@@ -216,6 +216,7 @@ export function Dashboard() {
   const totalPct = totalCost > 0 ? (totalGainLoss / totalCost) * 100 : 0;
   const totalDayChange = allActivePositions.reduce((sum, p) => sum + (p.dayChange ?? 0), 0);
   const totalRealized = positions.reduce((sum, p) => sum + p.realizedGainLoss, 0);
+  const reportingCurrency = positions[0]?.reportingCurrency ?? 'DKK';
 
   const sortedActivePositions = useMemo(
     () => sortPositions(activePositions, sort, totalValue),
@@ -256,15 +257,16 @@ export function Dashboard() {
           </p>
           <AnimatedNumber
             value={totalValue}
+            currency={reportingCurrency}
             style={{ fontSize: 48, fontWeight: 600, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums" }}
           />
           <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginTop: 4 }}>
             <span style={{ fontSize: 18, fontVariantNumeric: "tabular-nums", color: glColor(totalGainLoss) }}>
-              {formatDKK(totalGainLoss)} ({formatPercent(totalPct)})
+              {formatAmount(totalGainLoss, reportingCurrency)} ({formatPercent(totalPct)})
             </span>
             {totalDayChange !== 0 && (
               <span style={{ fontSize: 14, fontVariantNumeric: "tabular-nums", color: glColor(totalDayChange) }}>
-                Today {totalDayChange >= 0 ? "+" : ""}{formatDKK(totalDayChange)}
+                Today {totalDayChange >= 0 ? "+" : ""}{formatAmount(totalDayChange, reportingCurrency)}
               </span>
             )}
           </div>
@@ -272,12 +274,12 @@ export function Dashboard() {
             <p style={{ fontSize: 12, marginTop: 4 }}>
               <span style={{ color: "var(--muted-foreground)" }}>Realized </span>
               <span style={{ fontVariantNumeric: "tabular-nums", color: glColor(totalRealized) }}>
-                {formatDKK(totalRealized)}
+                {formatAmount(totalRealized, reportingCurrency)}
               </span>
             </p>
           )}
           <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 4 }}>
-            Cost basis {formatDKK(totalCost)} · {allActivePositions.length} holding{allActivePositions.length !== 1 ? "s" : ""}
+            Cost basis {formatAmount(totalCost, reportingCurrency)} · {allActivePositions.length} holding{allActivePositions.length !== 1 ? "s" : ""}
           </p>
         </div>
       ) : (
@@ -359,7 +361,7 @@ export function Dashboard() {
                                       }} />
                                     )}
                                     {p.instrument.ticker || p.instrument.isin}
-                                    {p.instrument.currency !== "DKK" && (
+                                    {p.instrument.currency !== reportingCurrency && (
                                       <span style={{ marginLeft: 6, fontSize: 12, color: "var(--muted-foreground)" }}>
                                         {p.instrument.currency}
                                       </span>
@@ -380,12 +382,12 @@ export function Dashboard() {
                               )}
                             </TableCell>
                             <TableCell style={{ textAlign: "right", paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12, fontVariantNumeric: "tabular-nums", fontFamily: "var(--font-mono)", fontSize: 14 }}>
-                              {p.currentValue !== null ? formatDKK(p.currentValue) : "\u2014"}
+                              {p.currentValue !== null ? formatAmount(p.currentValue, reportingCurrency) : "\u2014"}
                             </TableCell>
                             <TableCell style={{ textAlign: "right", paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>
                               {p.dayChange !== null && p.dayChangePercent !== null ? (
                                 <div style={{ fontVariantNumeric: "tabular-nums", fontFamily: "var(--font-mono)", fontSize: 14, color: glColor(p.dayChange) }}>
-                                  <div>{p.dayChange >= 0 ? "+" : ""}{formatDKK(p.dayChange)}</div>
+                                  <div>{p.dayChange >= 0 ? "+" : ""}{formatAmount(p.dayChange, reportingCurrency)}</div>
                                   <div style={{ fontSize: 12 }}>{formatPercent(p.dayChangePercent)}</div>
                                 </div>
                               ) : (
@@ -395,7 +397,7 @@ export function Dashboard() {
                             <TableCell style={{ textAlign: "right", paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>
                               {p.currentValue !== null ? (
                                 <div style={{ fontVariantNumeric: "tabular-nums", fontFamily: "var(--font-mono)", fontSize: 14, color: glColor(p.unrealizedGainLoss) }}>
-                                  <div>{formatDKK(p.unrealizedGainLoss)}</div>
+                                  <div>{formatAmount(p.unrealizedGainLoss, reportingCurrency)}</div>
                                   <div style={{ fontSize: 12 }}>({formatPercent(gainPct)})</div>
                                 </div>
                               ) : (
@@ -466,7 +468,7 @@ export function Dashboard() {
                           </TableCell>
                           <TableCell style={{ textAlign: "right", paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>
                             <span style={{ fontVariantNumeric: "tabular-nums", fontFamily: "var(--font-mono)", fontSize: 14, color: glColor(p.realizedGainLoss) }}>
-                              {formatDKK(p.realizedGainLoss)}
+                              {formatAmount(p.realizedGainLoss, reportingCurrency)}
                             </span>
                           </TableCell>
                           <TableCell style={{ paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>

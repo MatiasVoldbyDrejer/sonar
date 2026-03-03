@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, mapInstrumentRow, mapTransactionRow } from '@/lib/db';
+import { getDb, mapInstrumentRow, mapTransactionRow, getSetting } from '@/lib/db';
 import { getChart } from '@/lib/market-data';
 import { getBatchHistoricalRates } from '@/lib/fx';
 import type { ChartDataPoint } from '@/types';
@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const db = getDb();
+    const reportingCurrency = getSetting('reporting_currency') ?? 'DKK';
 
     // Load instruments and transactions
     const instrumentRows = db.prepare('SELECT * FROM instruments').all() as Record<string, unknown>[];
@@ -120,7 +121,7 @@ export async function GET(request: NextRequest) {
     // Collect unique currencies for FX
     const uniqueCurrencies = new Set<string>();
     for (const inst of instrumentsWithSymbol) {
-      if (inst.currency !== 'DKK') {
+      if (inst.currency !== reportingCurrency) {
         uniqueCurrencies.add(inst.currency);
       }
     }
@@ -132,10 +133,10 @@ export async function GET(request: NextRequest) {
         fxPairs.push({ currency, date });
       }
     }
-    const fxRates = await getBatchHistoricalRates(fxPairs);
+    const fxRates = await getBatchHistoricalRates(fxPairs, reportingCurrency);
 
     function getFxRate(currency: string, date: string): number {
-      if (currency === 'DKK') return 1.0;
+      if (currency === reportingCurrency) return 1.0;
       return fxRates.get(`${currency}:${date}`) ?? 1.0;
     }
 

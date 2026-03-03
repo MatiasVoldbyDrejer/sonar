@@ -46,7 +46,7 @@ export interface Position {
   currentValue: number | null;
   dayChange: number | null;
   dayChangePercent: number | null;
-  reportingCurrency: 'DKK';
+  reportingCurrency: string;
 }
 
 export interface AnalysisCache {
@@ -168,6 +168,7 @@ export interface DeepDiveData {
   totalRealizedGainLoss: number;
   holdingCount: number;
   top5Concentration: number;
+  reportingCurrency: string;
   topHoldings: Array<{
     name: string;
     ticker: string | null;

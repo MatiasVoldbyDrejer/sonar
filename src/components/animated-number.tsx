@@ -8,21 +8,25 @@ import {
   useReducedMotion,
 } from "framer-motion";
 
-const formatter = new Intl.NumberFormat("da-DK", {
-  style: "currency",
-  currency: "DKK",
-  minimumFractionDigits: 2,
-});
+function getFormatter(currency: string) {
+  return new Intl.NumberFormat("da-DK", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+  });
+}
 
 interface AnimatedNumberProps {
   value: number;
+  currency?: string;
   style?: React.CSSProperties;
 }
 
-export function AnimatedNumber({ value, style }: AnimatedNumberProps) {
+export function AnimatedNumber({ value, currency = "DKK", style }: AnimatedNumberProps) {
   const prefersReducedMotion = useReducedMotion();
+  const formatter = getFormatter(currency);
   const spring = useSpring(0, { duration: 400, bounce: 0 });
-  const display = useTransform(spring, (v) => formatter.format(v));
+  const display = useTransform(spring, (v) => getFormatter(currency).format(v));
   const ref = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -31,7 +35,7 @@ export function AnimatedNumber({ value, style }: AnimatedNumberProps) {
       return;
     }
     spring.set(value);
-  }, [value, spring, prefersReducedMotion]);
+  }, [value, spring, prefersReducedMotion, formatter]);
 
   if (prefersReducedMotion) {
     return (

@@ -1,10 +1,11 @@
-import { getDb, mapInstrumentRow, mapTransactionRow, mapAccountRow } from '@/lib/db';
-import { aggregatePositionsDKK } from '@/lib/portfolio-engine';
+import { getDb, mapInstrumentRow, mapTransactionRow, mapAccountRow, getSetting } from '@/lib/db';
+import { aggregatePositions } from '@/lib/portfolio-engine';
 import { getBatchHistoricalRates, getBatchCurrentRates } from '@/lib/fx';
 import type { Instrument, Position } from '@/types';
 
 export async function loadPositions(): Promise<Position[]> {
   const db = getDb();
+  const reportingCurrency = getSetting('reporting_currency') ?? 'DKK';
 
   const instrumentRows = db.prepare('SELECT * FROM instruments').all();
   const instruments = new Map<number, Instrument>();
@@ -29,16 +30,16 @@ export async function loadPositions(): Promise<Position[]> {
     const inst = instruments.get(tx.instrumentId);
     if (inst) {
       currencies.add(inst.currency);
-      if (inst.currency !== 'DKK') {
+      if (inst.currency !== reportingCurrency) {
         historicalPairs.push({ currency: inst.currency, date: tx.date });
       }
     }
   }
 
   const [historicalRates, currentRates] = await Promise.all([
-    getBatchHistoricalRates(historicalPairs),
-    getBatchCurrentRates([...currencies]),
+    getBatchHistoricalRates(historicalPairs, reportingCurrency),
+    getBatchCurrentRates([...currencies], reportingCurrency),
   ]);
 
-  return aggregatePositionsDKK(transactions, instruments, accounts, new Map(), historicalRates, currentRates);
+  return aggregatePositions(transactions, instruments, accounts, new Map(), historicalRates, currentRates, reportingCurrency);
 }

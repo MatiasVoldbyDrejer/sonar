@@ -16,13 +16,16 @@ export function portfolioWeight(value: number, total: number): string {
   return `${((value / total) * 100).toFixed(1)}%`
 }
 
-export function formatDKK(value: number): string {
+export function formatAmount(value: number, currency = "DKK"): string {
   return new Intl.NumberFormat("da-DK", {
     style: "currency",
-    currency: "DKK",
+    currency,
     minimumFractionDigits: 2,
   }).format(value)
 }
+
+/** @deprecated Use formatAmount instead */
+export const formatDKK = (value: number) => formatAmount(value, "DKK");
 
 export function formatPercent(value: number): string {
   const sign = value >= 0 ? "+" : ""

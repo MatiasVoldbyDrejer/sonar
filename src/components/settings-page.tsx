@@ -74,13 +74,18 @@ export function SettingsPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <h1 style={{ fontSize: "1.5rem", fontWeight: 600, letterSpacing: "-0.025em" }}>Settings</h1>
-      <Tabs defaultValue="instruments">
+      <Tabs defaultValue="general">
         <TabsList>
+          <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="instruments">Instruments</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
           <TabsTrigger value="import">Import</TabsTrigger>
           <TabsTrigger value="accounts">Accounts</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="general" style={{ marginTop: 16 }}>
+          <GeneralTab />
+        </TabsContent>
 
         <TabsContent value="instruments" style={{ marginTop: 16 }}>
           <InstrumentsTab
@@ -107,6 +112,72 @@ export function SettingsPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+// ─── General Tab ──────────────────────────────────────────────────
+
+const SUPPORTED_CURRENCIES = ["DKK", "EUR", "USD", "GBP", "SEK", "NOK", "CHF"];
+
+function GeneralTab() {
+  const [currency, setCurrency] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/settings/currency")
+      .then((r) => r.json())
+      .then((data) => setCurrency(data.currency ?? "DKK"))
+      .catch(() => setCurrency("DKK"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleChange = async (value: string) => {
+    setCurrency(value);
+    try {
+      const res = await fetch("/api/settings/currency", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currency: value }),
+      });
+      if (res.ok) {
+        toast.success(`Reporting currency set to ${value}`);
+      } else {
+        toast.error("Failed to update currency");
+      }
+    } catch {
+      toast.error("Failed to update currency");
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Reporting Currency</CardTitle>
+      </CardHeader>
+      <CardContent style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <p style={{ fontSize: "0.875rem", color: "var(--muted-foreground)" }}>
+          All portfolio values will be converted to this currency.
+        </p>
+        {loading ? (
+          <p style={{ color: "var(--muted-foreground)" }}>Loading...</p>
+        ) : (
+          <div style={{ maxWidth: 200 }}>
+            <Select value={currency} onValueChange={handleChange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SUPPORTED_CURRENCIES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

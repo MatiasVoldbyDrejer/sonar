@@ -80,18 +80,20 @@ export function computePosition(transactions: Transaction[]): PositionResult {
 }
 
 /**
- * Aggregate positions across all instruments and accounts, converting everything to DKK.
+ * Aggregate positions across all instruments and accounts, converting everything to the reporting currency.
  *
- * @param historicalRates - Map of "currency:date" → DKK rate (for cost basis conversion)
- * @param currentRates - Map of currency → current DKK rate (for market value conversion)
+ * @param historicalRates - Map of "currency:date" → reporting currency rate (for cost basis conversion)
+ * @param currentRates - Map of currency → current reporting currency rate (for market value conversion)
+ * @param reportingCurrency - The target reporting currency (default: 'DKK')
  */
-export function aggregatePositionsDKK(
+export function aggregatePositions(
   transactions: Transaction[],
   instruments: Map<number, Instrument>,
   accounts: Map<number, string>,
   currentPrices: Map<string, number>,
   historicalRates: Map<string, number>,
-  currentRates: Map<string, number>
+  currentRates: Map<string, number>,
+  reportingCurrency = 'DKK'
 ): Position[] {
   // Group transactions by (instrumentId, accountId)
   const groups = new Map<string, Transaction[]>();
@@ -114,41 +116,41 @@ export function aggregatePositionsDKK(
     const currency = instrument.currency;
     const currentFxRate = currentRates.get(currency) ?? 1.0;
 
-    // Convert cost basis to DKK using historical rates per lot
-    let costBasisDKK = 0;
+    // Convert cost basis to reporting currency using historical rates per lot
+    let convertedCostBasis = 0;
     for (const lot of result.lots) {
       const historicalRate = historicalRates.get(`${currency}:${lot.date}`) ?? 1.0;
-      costBasisDKK += lot.totalCost * historicalRate;
+      convertedCostBasis += lot.totalCost * historicalRate;
     }
 
-    // Convert realized gain/loss to DKK using current rate (approximation)
-    const realizedGainLossDKK = result.realizedGainLoss * currentFxRate;
+    // Convert realized gain/loss using current rate (approximation)
+    const convertedRealizedGainLoss = result.realizedGainLoss * currentFxRate;
 
-    // Current value in DKK
+    // Current value in reporting currency
     const currentPrice = currentPrices.get(instrument.yahooSymbol || instrument.isin) ?? null;
-    const currentValueDKK = currentPrice !== null ? currentPrice * result.quantity * currentFxRate : null;
-    const unrealizedGainLossDKK = currentValueDKK !== null ? currentValueDKK - costBasisDKK : 0;
+    const convertedCurrentValue = currentPrice !== null ? currentPrice * result.quantity * currentFxRate : null;
+    const convertedUnrealizedGainLoss = convertedCurrentValue !== null ? convertedCurrentValue - convertedCostBasis : 0;
 
-    // Current price in DKK
-    const currentPriceDKK = currentPrice !== null ? currentPrice * currentFxRate : null;
+    // Current price in reporting currency
+    const convertedCurrentPrice = currentPrice !== null ? currentPrice * currentFxRate : null;
 
-    // Average price in DKK
-    const averagePriceDKK = result.quantity > 0 ? costBasisDKK / result.quantity : 0;
+    // Average price in reporting currency
+    const convertedAveragePrice = result.quantity > 0 ? convertedCostBasis / result.quantity : 0;
 
     positions.push({
       instrument,
       accountId,
       accountName: accounts.get(accountId) || 'Unknown',
       quantity: result.quantity,
-      costBasis: costBasisDKK,
-      averagePrice: averagePriceDKK,
-      realizedGainLoss: realizedGainLossDKK,
-      unrealizedGainLoss: unrealizedGainLossDKK,
-      currentPrice: currentPriceDKK,
-      currentValue: currentValueDKK,
+      costBasis: convertedCostBasis,
+      averagePrice: convertedAveragePrice,
+      realizedGainLoss: convertedRealizedGainLoss,
+      unrealizedGainLoss: convertedUnrealizedGainLoss,
+      currentPrice: convertedCurrentPrice,
+      currentValue: convertedCurrentValue,
       dayChange: null,
       dayChangePercent: null,
-      reportingCurrency: 'DKK',
+      reportingCurrency,
     });
   }
 

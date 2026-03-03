@@ -1,13 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
-import { getDb, mapInstrumentRow, mapTransactionRow, mapAccountRow } from '@/lib/db';
-import { aggregatePositionsDKK } from '@/lib/portfolio-engine';
+import { getDb, mapInstrumentRow, mapTransactionRow, mapAccountRow, getSetting } from '@/lib/db';
+import { aggregatePositions } from '@/lib/portfolio-engine';
 import { getBatchQuotes, getAssetProfile } from '@/lib/market-data';
 import { getBatchCurrentRates, getBatchHistoricalRates } from '@/lib/fx';
 import type { Instrument, AllocationSlice, DeepDiveData, DiversificationScore } from '@/types';
 
 export async function GET() {
   const db = getDb();
+  const reportingCurrency = getSetting('reporting_currency') ?? 'DKK';
 
   // Load instruments
   const instrumentRows = db.prepare('SELECT * FROM instruments').all();
@@ -62,7 +63,7 @@ export async function GET() {
   const historicalPairs: Array<{ currency: string; date: string }> = [];
   for (const tx of transactions) {
     const inst = instruments.get(tx.instrumentId);
-    if (inst && inst.currency !== 'DKK') {
+    if (inst && inst.currency !== reportingCurrency) {
       historicalPairs.push({ currency: inst.currency, date: tx.date });
     }
   }
@@ -74,8 +75,8 @@ export async function GET() {
 
   const [quotes, currentRates, historicalRates] = await Promise.all([
     getBatchQuotes(symbols),
-    getBatchCurrentRates([...currencies]),
-    getBatchHistoricalRates(historicalPairs),
+    getBatchCurrentRates([...currencies], reportingCurrency),
+    getBatchHistoricalRates(historicalPairs, reportingCurrency),
   ]);
 
   const currentPrices = new Map<string, number>();
@@ -83,13 +84,14 @@ export async function GET() {
     currentPrices.set(symbol, quote.price);
   }
 
-  const positions = aggregatePositionsDKK(
+  const positions = aggregatePositions(
     transactions,
     instruments,
     accounts,
     currentPrices,
     historicalRates,
-    currentRates
+    currentRates,
+    reportingCurrency
   );
 
   // Merge positions by instrument (across accounts)
@@ -238,6 +240,7 @@ export async function GET() {
     totalRealizedGainLoss: totalRealizedGainLoss,
     holdingCount,
     top5Concentration,
+    reportingCurrency,
     topHoldings,
     sectorAllocation,
     industryAllocation,

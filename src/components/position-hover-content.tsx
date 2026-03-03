@@ -1,7 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { formatDKK, formatPercent } from "@/lib/utils";
+import { formatAmount, formatPercent } from "@/lib/utils";
 import Link from "next/link";
 import type { Position } from "@/types";
 
@@ -40,6 +40,7 @@ export function PositionHoverContent({ instrument, positions }: PositionHoverCon
   const totalPL = activePositions.reduce((s, p) => s + p.unrealizedGainLoss, 0);
   const totalDay = activePositions.reduce((s, p) => s + (p.dayChange ?? 0), 0);
   const plPct = totalCost > 0 ? (totalPL / totalCost) * 100 : 0;
+  const rc = positions[0]?.reportingCurrency ?? 'DKK';
 
   const meta = [instrument.ticker, instrument.type?.toUpperCase(), instrument.currency]
     .filter(Boolean)
@@ -67,17 +68,17 @@ export function PositionHoverContent({ instrument, positions }: PositionHoverCon
       {hasActive ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", fontSize: "0.75rem" }}>
           <Row label="Qty" value={`${totalQty.toFixed(totalQty % 1 === 0 ? 0 : 4)} shares`} />
-          <Row label="Value" value={formatDKK(totalValue)} />
-          <Row label="Cost basis" value={formatDKK(totalCost)} />
+          <Row label="Value" value={formatAmount(totalValue, rc)} />
+          <Row label="Cost basis" value={formatAmount(totalCost, rc)} />
           <Row
             label="P/L"
-            value={`${formatDKK(totalPL)} (${formatPercent(plPct)})`}
+            value={`${formatAmount(totalPL, rc)} (${formatPercent(plPct)})`}
             style={{ color: totalPL >= 0 ? "var(--gain)" : "var(--loss)" }}
           />
           {totalDay !== 0 && (
             <Row
               label="Today"
-              value={`${totalDay >= 0 ? "+" : ""}${formatDKK(totalDay)}`}
+              value={`${totalDay >= 0 ? "+" : ""}${formatAmount(totalDay, rc)}`}
               style={{ color: totalDay >= 0 ? "var(--gain)" : "var(--loss)" }}
             />
           )}

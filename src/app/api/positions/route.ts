@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getDb, mapInstrumentRow, mapTransactionRow, mapAccountRow } from '@/lib/db';
-import { aggregatePositionsDKK } from '@/lib/portfolio-engine';
+import { getDb, mapInstrumentRow, mapTransactionRow, mapAccountRow, getSetting } from '@/lib/db';
+import { aggregatePositions } from '@/lib/portfolio-engine';
 import { getBatchQuotes } from '@/lib/market-data';
 import { getBatchCurrentRates, getBatchHistoricalRates } from '@/lib/fx';
 import type { Instrument } from '@/types';
 
 export async function GET() {
   const db = getDb();
+  const reportingCurrency = getSetting('reporting_currency') ?? 'DKK';
 
   const instrumentRows = db.prepare('SELECT * FROM instruments').all();
   const instruments = new Map<number, Instrument>();
@@ -35,7 +36,7 @@ export async function GET() {
   const historicalPairs: Array<{ currency: string; date: string }> = [];
   for (const tx of transactions) {
     const inst = instruments.get(tx.instrumentId);
-    if (inst && inst.currency !== 'DKK') {
+    if (inst && inst.currency !== reportingCurrency) {
       historicalPairs.push({ currency: inst.currency, date: tx.date });
     }
   }
@@ -47,8 +48,8 @@ export async function GET() {
 
   const [quotes, currentRates, historicalRates] = await Promise.all([
     getBatchQuotes(symbols),
-    getBatchCurrentRates([...currencies]),
-    getBatchHistoricalRates(historicalPairs),
+    getBatchCurrentRates([...currencies], reportingCurrency),
+    getBatchHistoricalRates(historicalPairs, reportingCurrency),
   ]);
 
   const currentPrices = new Map<string, number>();
@@ -58,20 +59,21 @@ export async function GET() {
     quoteChanges.set(symbol, { change: quote.change, changePercent: quote.changePercent });
   }
 
-  const positions = aggregatePositionsDKK(
+  const positions = aggregatePositions(
     transactions,
     instruments,
     accounts,
     currentPrices,
     historicalRates,
-    currentRates
+    currentRates,
+    reportingCurrency
   );
 
   // Enrich positions with day change data
   const enriched = positions.map(p => {
     const symbol = p.instrument.yahooSymbol;
     const qc = symbol ? quoteChanges.get(symbol) : null;
-    const fxRate = p.instrument.currency !== 'DKK' && symbol
+    const fxRate = p.instrument.currency !== reportingCurrency && symbol
       ? (currentRates.get(p.instrument.currency) ?? 1)
       : 1;
     return {
