@@ -9,6 +9,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -456,6 +457,39 @@ export function Dashboard() {
                         );
                       })}
                     </TableBody>
+                    {(() => {
+                      const tabValue = activePositions.reduce((s, p) => s + (p.currentValue ?? 0), 0);
+                      const tabDay = activePositions.reduce((s, p) => s + (p.dayChange ?? 0), 0);
+                      const tabDayPct = tabValue > 0 ? activePositions.reduce((s, p) => s + ((p.dayChangePercent ?? 0) * (p.currentValue ?? 0)), 0) / tabValue : 0;
+                      const tabGL = activePositions.reduce((s, p) => s + p.unrealizedGainLoss, 0);
+                      const tabCost = activePositions.reduce((s, p) => s + p.costBasis, 0);
+                      const tabGLPct = tabCost > 0 ? (tabGL / tabCost) * 100 : 0;
+                      return (
+                        <TableFooter>
+                          <TableRow style={{ fontWeight: 600 }}>
+                            <TableCell style={{ paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12, fontSize: 14 }}>Total</TableCell>
+                            <TableCell />
+                            <TableCell style={{ textAlign: "right", paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12, fontVariantNumeric: "tabular-nums", fontFamily: "var(--font-mono)", fontSize: 14 }}>
+                              {formatAmount(tabValue, reportingCurrency)}
+                            </TableCell>
+                            <TableCell style={{ textAlign: "right", paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>
+                              <div style={{ fontVariantNumeric: "tabular-nums", fontFamily: "var(--font-mono)", fontSize: 14, color: glColor(tabDay) }}>
+                                <div>{tabDay >= 0 ? "+" : ""}{formatAmount(tabDay, reportingCurrency)}</div>
+                                <div style={{ fontSize: 12 }}>{formatPercent(tabDayPct)}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell style={{ textAlign: "right", paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>
+                              <div style={{ fontVariantNumeric: "tabular-nums", fontFamily: "var(--font-mono)", fontSize: 14, color: glColor(tabGL) }}>
+                                <div>{formatAmount(tabGL, reportingCurrency)}</div>
+                                <div style={{ fontSize: 12 }}>({formatPercent(tabGLPct)})</div>
+                              </div>
+                            </TableCell>
+                            <TableCell />
+                            <TableCell />
+                          </TableRow>
+                        </TableFooter>
+                      );
+                    })()}
                   </Table>
                 </div>
               )}
@@ -515,6 +549,17 @@ export function Dashboard() {
                         </TableRow>
                       ))}
                     </TableBody>
+                    <TableFooter>
+                      <TableRow style={{ fontWeight: 600 }}>
+                        <TableCell style={{ paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12, fontSize: 14 }}>Total</TableCell>
+                        <TableCell style={{ textAlign: "right", paddingTop: 10, paddingBottom: 10, paddingLeft: 12, paddingRight: 12 }}>
+                          <span style={{ fontVariantNumeric: "tabular-nums", fontFamily: "var(--font-mono)", fontSize: 14, color: glColor(closedPositions.reduce((s, p) => s + p.realizedGainLoss, 0)) }}>
+                            {formatAmount(closedPositions.reduce((s, p) => s + p.realizedGainLoss, 0), reportingCurrency)}
+                          </span>
+                        </TableCell>
+                        <TableCell />
+                      </TableRow>
+                    </TableFooter>
                   </Table>
                 </div>
               )}

@@ -17,6 +17,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -663,6 +664,20 @@ function TransactionsTab({
                 );
               })}
             </TableBody>
+            <TableFooter>
+              <TableRow style={{ fontWeight: 600 }}>
+                <TableCell style={{ fontSize: 14 }}>Total ({transactions.length})</TableCell>
+                <TableCell />
+                <TableCell />
+                <TableCell />
+                <TableCell />
+                <TableCell style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                  {transactions.reduce((s, tx) => s + tx.fee, 0).toFixed(2)}
+                </TableCell>
+                <TableCell />
+                <TableCell />
+              </TableRow>
+            </TableFooter>
           </Table>
         )}
       </CardContent>
@@ -1029,6 +1044,19 @@ function ImportTab({
                     </TableRow>
                   ))}
                 </TableBody>
+                <TableFooter>
+                  <TableRow style={{ fontWeight: 600 }}>
+                    <TableCell style={{ fontSize: 14 }}>Total ({preview.length})</TableCell>
+                    <TableCell />
+                    <TableCell />
+                    <TableCell />
+                    <TableCell />
+                    <TableCell />
+                    <TableCell style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                      {preview.reduce((s, tx) => s + tx.fee, 0).toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+                </TableFooter>
               </Table>
             </div>
           )}

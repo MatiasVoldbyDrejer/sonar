@@ -8,6 +8,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -425,6 +426,24 @@ export function InstrumentDetail({ isin }: { isin: string }) {
                     </TableRow>
                 ))}
               </TableBody>
+              <TableFooter>
+                <TableRow style={{ fontWeight: 600 }}>
+                  <TableCell style={{ fontSize: 14 }}>Total</TableCell>
+                  <TableCell />
+                  <TableCell />
+                  <TableCell />
+                  <TableCell style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                    {formatCurrency(transactions.reduce((s, tx) => s + tx.fee, 0), instrument.currency)}
+                  </TableCell>
+                  <TableCell style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                    {formatCurrency(
+                      transactions.reduce((s, tx) => s + (tx.type === "dividend" ? tx.price : tx.quantity * tx.price), 0),
+                      instrument.currency
+                    )}
+                  </TableCell>
+                  <TableCell />
+                </TableRow>
+              </TableFooter>
             </Table>
           )}
         </CardContent>
