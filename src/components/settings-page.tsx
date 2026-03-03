@@ -1226,6 +1226,32 @@ function AccountsTab({
 }) {
   const [name, setName] = useState("");
   const [broker, setBroker] = useState("nordnet");
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [editingName, setEditingName] = useState("");
+
+  const handleRename = async () => {
+    const trimmed = editingName.trim();
+    if (!editingAccount || !trimmed) {
+      setEditingAccount(null);
+      return;
+    }
+    try {
+      const res = await fetch("/api/accounts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingAccount.id, name: trimmed }),
+      });
+      if (res.ok) {
+        toast.success("Account renamed");
+        onRefresh();
+      } else {
+        toast.error("Failed to rename");
+      }
+    } catch {
+      toast.error("Failed to rename");
+    }
+    setEditingAccount(null);
+  };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1262,6 +1288,7 @@ function AccountsTab({
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Broker</TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1270,6 +1297,18 @@ function AccountsTab({
                   <TableCell style={{ fontWeight: 500 }}>{acc.name}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{acc.broker}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditingAccount(acc);
+                        setEditingName(acc.name);
+                      }}
+                    >
+                      Edit
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -1304,6 +1343,39 @@ function AccountsTab({
           <Button type="submit">Add</Button>
         </form>
       </CardContent>
+
+      {/* Rename Account Dialog */}
+      <Dialog open={!!editingAccount} onOpenChange={(open) => !open && setEditingAccount(null)}>
+        <DialogContent style={{ maxWidth: 400 }}>
+          <DialogHeader>
+            <DialogTitle>Rename Account</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleRename();
+            }}
+            style={{ display: "flex", flexDirection: "column", gap: 12 }}
+          >
+            <div>
+              <Label htmlFor="rename-acc">Name</Label>
+              <Input
+                id="rename-acc"
+                autoFocus
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                required
+              />
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <Button type="button" variant="ghost" onClick={() => setEditingAccount(null)}>
+                Cancel
+              </Button>
+              <Button type="submit">Save</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

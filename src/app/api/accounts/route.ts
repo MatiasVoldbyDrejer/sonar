@@ -7,6 +7,20 @@ export async function GET() {
   return NextResponse.json(rows.map(r => mapAccountRow(r as Record<string, unknown>)));
 }
 
+export async function PATCH(request: NextRequest) {
+  const { id, name } = await request.json();
+  if (!id || !name?.trim()) {
+    return NextResponse.json({ error: 'Missing required fields: id, name' }, { status: 400 });
+  }
+  const db = getDb();
+  db.prepare('UPDATE accounts SET name = ? WHERE id = ?').run(name.trim(), id);
+  const row = db.prepare('SELECT * FROM accounts WHERE id = ?').get(id);
+  if (!row) {
+    return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+  }
+  return NextResponse.json(mapAccountRow(row as Record<string, unknown>));
+}
+
 export async function POST(request: NextRequest) {
   const { name, broker, walletAddress } = await request.json();
   if (!name || !broker) {
