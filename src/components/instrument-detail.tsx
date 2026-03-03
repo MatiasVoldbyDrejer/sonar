@@ -299,7 +299,7 @@ export function InstrumentDetail({ isin }: { isin: string }) {
 
       {/* Price Chart */}
       {instrument.yahooSymbol && instrument.hasQuoteSource && (
-        <PriceChart symbol={instrument.yahooSymbol} currency={instrument.currency} />
+        <PriceChart symbol={instrument.yahooSymbol} currency={instrument.currency} transactions={transactions} />
       )}
 
       {/* AI Analysis */}

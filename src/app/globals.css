@@ -180,6 +180,24 @@
   animation: blink-cursor 1.06s step-end infinite;
 }
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--warm-umbra-300) transparent;
+}
+*::-webkit-scrollbar {
+  width: 4px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--warm-umbra-300);
+  border-radius: 2px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--warm-umbra-400);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

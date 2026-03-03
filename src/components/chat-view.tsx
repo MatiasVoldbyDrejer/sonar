@@ -2,9 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "@/components/chat-message";
-import { Send } from "lucide-react";
+import { Send, ChevronDown, Briefcase, BarChart3, Check } from "lucide-react";
 import type { Chat, AgentType, Instrument } from "@/types";
 
 interface StoredMessage {
@@ -14,16 +13,10 @@ interface StoredMessage {
   metadata?: { agent?: AgentType; citations?: string[] };
 }
 
-const AGENTS: { id: AgentType; label: string }[] = [
-  { id: "market-analyst", label: "@market-analyst" },
-  { id: "portfolio-analyst", label: "@portfolio-analyst" },
+const AGENTS: { id: AgentType; label: string; description: string; icon: typeof Briefcase }[] = [
+  { id: "portfolio-analyst", label: "Portfolio Analyst", description: "Analyzes your holdings", icon: Briefcase },
+  { id: "market-analyst", label: "Market Analyst", description: "Tracks market trends", icon: BarChart3 },
 ];
-
-function detectAgent(text: string): AgentType | null {
-  if (text.includes("@market-analyst")) return "market-analyst";
-  if (text.includes("@portfolio-analyst")) return "portfolio-analyst";
-  return null;
-}
 
 interface ChatViewProps {
   chat: Chat;
@@ -38,9 +31,9 @@ export function ChatView({ chat }: ChatViewProps) {
   const [streamingAgent, setStreamingAgent] = useState<AgentType | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [generatingDaily, setGeneratingDaily] = useState(false);
-  const [showMentionMenu, setShowMentionMenu] = useState(false);
-  const [mentionIndex, setMentionIndex] = useState(0);
   const [inputValue, setInputValue] = useState("");
+  const [showAgentMenu, setShowAgentMenu] = useState(false);
+  const agentMenuRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -48,10 +41,7 @@ export function ChatView({ chat }: ChatViewProps) {
 
   useEffect(() => {
     if (scrollRef.current) {
-      const el = scrollRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]"
-      );
-      if (el) el.scrollTop = el.scrollHeight;
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, streamingContent]);
 
@@ -61,6 +51,18 @@ export function ChatView({ chat }: ChatViewProps) {
       .then((data) => setInstruments(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (agentMenuRef.current && !agentMenuRef.current.contains(e.target as Node)) {
+        setShowAgentMenu(false);
+      }
+    }
+    if (showAgentMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showAgentMenu]);
 
   const persistMessages = useCallback(
     (msgs: StoredMessage[]) => {
@@ -195,9 +197,7 @@ export function ChatView({ chat }: ChatViewProps) {
     e.preventDefault();
     if (!inputValue.trim() || isStreaming || generatingDaily) return;
 
-    const mentioned = detectAgent(inputValue);
-    const agent = mentioned ?? currentAgent;
-    if (mentioned) setCurrentAgent(mentioned);
+    const agent = currentAgent;
 
     const userMsg: StoredMessage = {
       id: `msg_user_${Date.now()}`,
@@ -208,7 +208,6 @@ export function ChatView({ chat }: ChatViewProps) {
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setInputValue("");
-    setShowMentionMenu(false);
 
     const apiMessages = updatedMessages.map((m) => ({
       role: m.role,
@@ -242,53 +241,21 @@ export function ChatView({ chat }: ChatViewProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (showMentionMenu) {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setMentionIndex((i) => (i + 1) % AGENTS.length);
-        return;
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setMentionIndex((i) => (i - 1 + AGENTS.length) % AGENTS.length);
-        return;
-      }
-      if (e.key === "Enter") {
-        e.preventDefault();
-        insertMention(AGENTS[mentionIndex].id);
-        return;
-      }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        setShowMentionMenu(false);
-        return;
-      }
-    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
     }
   };
 
-  const insertMention = (agentId: AgentType) => {
-    const cursorPos = inputRef.current?.selectionStart ?? inputValue.length;
-    const beforeCursor = inputValue.slice(0, cursorPos);
-    const atIndex = beforeCursor.lastIndexOf("@");
-    const before = atIndex >= 0 ? inputValue.slice(0, atIndex) : inputValue;
-    const after = inputValue.slice(cursorPos);
-    setInputValue(`${before}@${agentId} ${after}`);
-    setShowMentionMenu(false);
-    inputRef.current?.focus();
-  };
-
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      <ScrollArea style={{ flex: 1, padding: "0 16px" }} ref={scrollRef}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "0 16px" }}>
         <div
           style={{
             maxWidth: 768,
             margin: "0 auto",
             padding: "16px 0",
+            paddingBottom: 160,
             display: "flex",
             flexDirection: "column",
             gap: 24,
@@ -334,126 +301,164 @@ export function ChatView({ chat }: ChatViewProps) {
             />
           )}
         </div>
-      </ScrollArea>
+      </div>
 
-      <div className="glass" style={{ padding: 16 }}>
+      {/* Chat input — fixed to bottom with 1rem margin, offset for sidebar */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: "1rem",
+          left: 224,
+          right: 0,
+          zIndex: 20,
+          padding: "0 16px",
+          pointerEvents: "none",
+        }}
+      >
         <form
           onSubmit={handleSubmit}
-          style={{ maxWidth: 768, margin: "0 auto", position: "relative" }}
+          style={{
+            maxWidth: 768,
+            margin: "0 auto",
+            pointerEvents: "auto",
+          }}
         >
-          {showMentionMenu && (
-            <div
-              className="glass"
-              style={{
-                position: "absolute",
-                bottom: "100%",
-                marginBottom: 4,
-                left: 0,
-                borderRadius: "var(--radius-md)",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-                padding: 4,
-                zIndex: 10,
-              }}
-            >
-              {AGENTS.map((agent, i) => (
-                <button
-                  key={agent.id}
-                  type="button"
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
-                    fontSize: 14,
-                    padding: "6px 12px",
-                    borderRadius: "var(--radius-sm)",
-                    background:
-                      i === mentionIndex
-                        ? "rgba(255, 255, 255, 0.06)"
-                        : "transparent",
-                    border: "none",
-                    color: "inherit",
-                    cursor: "pointer",
-                  }}
-                  data-hover="search-result"
-                  onClick={() => insertMention(agent.id)}
-                  onMouseEnter={() => setMentionIndex(i)}
-                >
-                  {agent.label}
-                </button>
-              ))}
-            </div>
-          )}
           <div
             style={{
-              display: "flex",
-              gap: 8,
-              alignItems: "flex-end",
+              borderRadius: 20,
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              background: "rgba(255, 255, 255, 0.04)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              padding: "12px 16px",
             }}
           >
             <textarea
               ref={inputRef}
               value={inputValue}
-              onChange={(e) => {
-                setInputValue(e.target.value);
-                if (e.target.value.endsWith("@")) {
-                  setShowMentionMenu(true);
-                  setMentionIndex(0);
-                } else if (!e.target.value.includes("@")) {
-                  setShowMentionMenu(false);
-                }
-              }}
+              onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Message @market-analyst or @portfolio-analyst..."
+              placeholder="Ask anything..."
               style={{
-                flex: 1,
-                minHeight: 44,
+                width: "100%",
+                minHeight: 28,
                 maxHeight: 200,
                 resize: "none",
-                borderRadius: "var(--radius-lg)",
-                background: "rgba(255, 255, 255, 0.04)",
-                padding: "12px 16px",
-                fontSize: 14,
+                background: "transparent",
+                padding: 0,
+                fontSize: 15,
                 border: "none",
                 color: "inherit",
                 outline: "none",
+                lineHeight: 1.5,
               }}
               rows={1}
               disabled={isStreaming || generatingDaily}
             />
-            <Button
-              type="submit"
-              size="icon"
+            <div
               style={{
-                height: 44,
-                width: 44,
-                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginTop: 8,
               }}
-              disabled={!inputValue.trim() || isStreaming || generatingDaily}
             >
-              <Send style={{ width: 16, height: 16 }} />
-            </Button>
+              {/* Agent dropdown */}
+              <div ref={agentMenuRef} style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAgentMenu((v) => !v)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: "var(--color-muted-foreground)",
+                    background: "none",
+                    border: "none",
+                    padding: "4px 0",
+                    cursor: "pointer",
+                    font: "inherit",
+                  }}
+                >
+                  {AGENTS.find((a) => a.id === currentAgent)?.label}
+                  <ChevronDown style={{ width: 12, height: 12 }} />
+                </button>
+
+                {showAgentMenu && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: "calc(100% + 8px)",
+                      left: -16,
+                      minWidth: 220,
+                      borderRadius: 12,
+                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                      background: "var(--popover)",
+                      boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
+                      padding: 4,
+                      zIndex: 30,
+                    }}
+                  >
+                    {AGENTS.map((agent) => {
+                      const Icon = agent.icon;
+                      const isSelected = currentAgent === agent.id;
+                      return (
+                        <button
+                          key={agent.id}
+                          type="button"
+                          onClick={() => {
+                            setCurrentAgent(agent.id);
+                            setShowAgentMenu(false);
+                          }}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            width: "100%",
+                            textAlign: "left",
+                            padding: "10px 12px",
+                            borderRadius: 8,
+                            background: "transparent",
+                            border: "none",
+                            color: "inherit",
+                            cursor: "pointer",
+                            font: "inherit",
+                          }}
+                          data-hover="search-result"
+                        >
+                          <Icon style={{ width: 14, height: 14, flexShrink: 0, color: "var(--muted-foreground)" }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12 }}>{agent.label}</div>
+                            <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{agent.description}</div>
+                          </div>
+                          {isSelected && (
+                            <Check style={{ width: 14, height: 14, flexShrink: 0, color: "var(--primary)" }} />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Send button */}
+              <Button
+                type="submit"
+                size="icon"
+                style={{
+                  height: 32,
+                  width: 32,
+                  borderRadius: "50%",
+                  flexShrink: 0,
+                }}
+                disabled={!inputValue.trim() || isStreaming || generatingDaily}
+              >
+                <Send style={{ width: 14, height: 14 }} />
+              </Button>
+            </div>
           </div>
-          <p
-            style={{
-              fontSize: 12,
-              color: "var(--muted-foreground)",
-              marginTop: 6,
-            }}
-          >
-            Type{" "}
-            <kbd
-              style={{
-                padding: "1px 4px",
-                background: "var(--muted)",
-                borderRadius: "var(--radius-sm)",
-                fontSize: 12,
-              }}
-            >
-              @
-            </kbd>{" "}
-            to mention an agent. Currently routing to:{" "}
-            <span style={{ fontWeight: 500 }}>{currentAgent}</span>
-          </p>
         </form>
       </div>
     </div>

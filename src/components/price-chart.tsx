@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Area, AreaChart, XAxis, YAxis, ResponsiveContainer } from "recharts";
-import type { ChartDataPoint } from "@/types";
+import type { Transaction, ChartDataPointWithTrades, TradeMarker } from "@/types";
 
 const periods = [
   { label: "1M", value: "1m" },
@@ -25,14 +24,196 @@ const chartConfig = {
   },
 };
 
+function formatCurrencyValue(value: number, currency: string) {
+  return new Intl.NumberFormat("da-DK", { style: "currency", currency }).format(
+    value
+  );
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function TradeDot(props: any) {
+  const { cx, cy, payload } = props;
+  if (!payload?.trades?.length) return null;
+
+  // Render a dot for the last trade type (buy/sell) — stacked trades
+  // are revealed via the tooltip
+  const dominantType = payload.trades[payload.trades.length - 1].type;
+  const color = dominantType === "buy" ? "var(--gain)" : "var(--loss)";
+
+  return (
+    <g>
+      <circle
+        cx={cx}
+        cy={cy}
+        r={6}
+        fill={color}
+        stroke="var(--background)"
+        strokeWidth={2}
+        style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))" }}
+      />
+      {payload.trades.length > 1 && (
+        <text
+          x={cx}
+          y={cy + 1}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize={8}
+          fontWeight={700}
+          fill="var(--background)"
+        >
+          {payload.trades.length}
+        </text>
+      )}
+    </g>
+  );
+}
+
+function TradeActiveDot(props: any) {
+  const { cx, cy, payload } = props;
+  if (!payload?.trades?.length) {
+    // Default active dot for non-trade points
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={4}
+        fill="var(--primary)"
+        stroke="var(--background)"
+        strokeWidth={2}
+      />
+    );
+  }
+
+  const dominantType = payload.trades[payload.trades.length - 1].type;
+  const color = dominantType === "buy" ? "var(--gain)" : "var(--loss)";
+
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={8}
+      fill={color}
+      stroke="var(--background)"
+      strokeWidth={2}
+      style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.4))" }}
+    />
+  );
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+function PriceChartTooltip({
+  active,
+  payload,
+  currency,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: ChartDataPointWithTrades }>;
+  currency: string;
+}) {
+  if (!active || !payload?.length) return null;
+
+  const point = payload[0].payload;
+
+  return (
+    <div
+      style={{
+        background: "var(--popover)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-md)",
+        padding: "8px 12px",
+        fontSize: 13,
+        minWidth: 160,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+      }}
+    >
+      <div
+        style={{
+          color: "var(--muted-foreground)",
+          fontSize: 11,
+          marginBottom: 4,
+        }}
+      >
+        {new Date(point.date).toLocaleDateString("da-DK", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })}
+      </div>
+      <div style={{ fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>
+        {formatCurrencyValue(point.close, currency)}
+      </div>
+
+      {point.trades && point.trades.length > 0 && (
+        <>
+          <div
+            style={{
+              borderTop: "1px solid var(--border)",
+              margin: "6px 0",
+            }}
+          />
+          {point.trades.map((trade, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                marginTop: i > 0 ? 4 : 0,
+                fontSize: 12,
+              }}
+            >
+              <span
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: "50%",
+                  background:
+                    trade.type === "buy" ? "var(--gain)" : "var(--loss)",
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{ fontWeight: 500, textTransform: "uppercase" }}>
+                {trade.type}
+              </span>
+              <span
+                style={{
+                  color: "var(--muted-foreground)",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {trade.quantity.toFixed(trade.quantity % 1 === 0 ? 0 : 4)} @{" "}
+                {formatCurrencyValue(trade.price, currency)}
+              </span>
+              {trade.fee > 0 && (
+                <span
+                  style={{ color: "var(--muted-foreground)", fontSize: 11 }}
+                >
+                  (fee:{" "}
+                  {formatCurrencyValue(
+                    trade.fee,
+                    trade.feeCurrency || currency
+                  )}
+                  )
+                </span>
+              )}
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
 export function PriceChart({
   symbol,
   currency,
+  transactions,
 }: {
   symbol: string;
   currency: string;
+  transactions?: Transaction[];
 }) {
-  const [data, setData] = useState<ChartDataPoint[]>([]);
+  const [data, setData] = useState<ChartDataPointWithTrades[]>([]);
   const [period, setPeriod] = useState("1y");
   const [loading, setLoading] = useState(true);
 
@@ -44,6 +225,60 @@ export function PriceChart({
       .catch(() => setData([]))
       .finally(() => setLoading(false));
   }, [symbol, period]);
+
+  const chartData = useMemo(() => {
+    if (!transactions?.length || !data.length) return data;
+
+    // Build map of transaction date -> trades
+    const txByDate = new Map<string, TradeMarker[]>();
+    for (const tx of transactions) {
+      const markers = txByDate.get(tx.date) || [];
+      markers.push({
+        type: tx.type,
+        quantity: tx.quantity,
+        price: tx.price,
+        fee: tx.fee,
+        feeCurrency: tx.feeCurrency,
+        date: tx.date,
+      });
+      txByDate.set(tx.date, markers);
+    }
+
+    // Chart dates for snapping
+    const chartDates = data.map((d) => d.date);
+
+    // Snap a date to the nearest chart date within 7 days
+    function snapToChart(dateStr: string): string | null {
+      const target = new Date(dateStr).getTime();
+      let bestDate: string | null = null;
+      let bestDist = Infinity;
+      for (const cd of chartDates) {
+        const dist = Math.abs(new Date(cd).getTime() - target);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestDate = cd;
+        }
+      }
+      const sevenDays = 7 * 24 * 60 * 60 * 1000;
+      return bestDist <= sevenDays ? bestDate : null;
+    }
+
+    // Build snapped map
+    const snappedTrades = new Map<string, TradeMarker[]>();
+    for (const [date, trades] of txByDate) {
+      const snapped = chartDates.includes(date) ? date : snapToChart(date);
+      if (!snapped) continue;
+      const existing = snappedTrades.get(snapped) || [];
+      existing.push(...trades);
+      snappedTrades.set(snapped, existing);
+    }
+
+    // Attach trades to chart data points
+    return data.map((point) => {
+      const trades = snappedTrades.get(point.date);
+      return trades ? { ...point, trades } : point;
+    });
+  }, [data, transactions]);
 
   return (
     <Card>
@@ -98,7 +333,7 @@ export function PriceChart({
         <div
           style={{ opacity: loading ? 0.5 : 1, transition: "opacity 200ms" }}
         >
-          {data.length === 0 && !loading ? (
+          {chartData.length === 0 && !loading ? (
             <div
               style={{
                 height: 400,
@@ -116,9 +351,15 @@ export function PriceChart({
               style={{ height: 400, width: "100%" }}
             >
               <ResponsiveContainer>
-                <AreaChart data={data}>
+                <AreaChart data={chartData}>
                   <defs>
-                    <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient
+                      id="colorPrice"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
                       <stop
                         offset="5%"
                         stopColor="var(--primary)"
@@ -161,16 +402,7 @@ export function PriceChart({
                     domain={["auto", "auto"]}
                   />
                   <ChartTooltip
-                    content={
-                      <ChartTooltipContent
-                        formatter={(value) =>
-                          new Intl.NumberFormat("da-DK", {
-                            style: "currency",
-                            currency,
-                          }).format(value as number)
-                        }
-                      />
-                    }
+                    content={<PriceChartTooltip currency={currency} />}
                   />
                   <Area
                     type="monotone"
@@ -179,6 +411,8 @@ export function PriceChart({
                     fillOpacity={1}
                     fill="url(#colorPrice)"
                     strokeWidth={1.5}
+                    dot={<TradeDot />}
+                    activeDot={<TradeActiveDot />}
                   />
                 </AreaChart>
               </ResponsiveContainer>

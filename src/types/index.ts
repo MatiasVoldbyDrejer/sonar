@@ -71,6 +71,19 @@ export interface ChartDataPoint {
   volume?: number;
 }
 
+export interface TradeMarker {
+  type: 'buy' | 'sell';
+  quantity: number;
+  price: number;
+  fee: number;
+  feeCurrency: string | null;
+  date: string;
+}
+
+export interface ChartDataPointWithTrades extends ChartDataPoint {
+  trades?: TradeMarker[];
+}
+
 export interface Chat {
   id: string;
   date: string;
