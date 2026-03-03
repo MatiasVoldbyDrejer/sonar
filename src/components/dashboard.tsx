@@ -265,7 +265,7 @@ export function Dashboard() {
                             className="transition-colors duration-100 hover:bg-white/[0.02]"
                           >
                             <TableCell className="py-2.5 px-3">
-                              <InstrumentBadge instrument={p.instrument} position={p}>
+                              <InstrumentBadge instrument={p.instrument} position={p} className="items-start">
                                 <div>
                                   <div className="font-medium text-sm flex items-center gap-1.5">
                                     {pulseIsins.has(p.instrument.isin) && (
@@ -366,7 +366,7 @@ export function Dashboard() {
                           className="transition-colors duration-100 hover:bg-white/[0.02]"
                         >
                           <TableCell className="py-2.5 px-3">
-                            <InstrumentBadge instrument={p.instrument} position={p}>
+                            <InstrumentBadge instrument={p.instrument} position={p} className="items-start">
                               <div>
                                 <div className="font-medium text-sm">
                                   {p.instrument.ticker || p.instrument.isin}
