@@ -115,12 +115,11 @@ export function InstrumentDetail({ isin }: { isin: string }) {
     fetchData();
   }, [fetchData]);
 
-  const fetchAnalysis = async () => {
+  const fetchAnalysis = async (refresh = false) => {
     setLoadingAnalysis(true);
     try {
-      const res = await fetch(`/api/analysis/instrument/${isin}`, {
-        method: "POST",
-      });
+      const url = `/api/analysis/instrument/${isin}${refresh ? "?refresh=true" : ""}`;
+      const res = await fetch(url, { method: "POST" });
       const data = await res.json();
       setAnalysis(data);
     } catch {
@@ -316,7 +315,7 @@ export function InstrumentDetail({ isin }: { isin: string }) {
                 <p style={{ color: "var(--muted-foreground)", marginBottom: 12 }}>
                   Get a comprehensive AI-powered analysis of this instrument.
                 </p>
-                <Button onClick={fetchAnalysis} disabled={loadingAnalysis}>
+                <Button onClick={() => fetchAnalysis()} disabled={loadingAnalysis}>
                   {loadingAnalysis ? "Analyzing..." : "Generate Analysis"}
                 </Button>
               </div>
@@ -333,7 +332,7 @@ export function InstrumentDetail({ isin }: { isin: string }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={fetchAnalysis}
+                    onClick={() => fetchAnalysis(true)}
                     disabled={loadingAnalysis}
                   >
                     {loadingAnalysis ? "Refreshing..." : "Refresh"}

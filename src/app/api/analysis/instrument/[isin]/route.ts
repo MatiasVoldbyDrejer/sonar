@@ -3,8 +3,9 @@ import { getDb, mapInstrumentRow } from '@/lib/db';
 import { queryPerplexity } from '@/lib/perplexity';
 import { deepDivePrompt } from '@/lib/prompts';
 
-export async function POST(_request: NextRequest, { params }: { params: Promise<{ isin: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ isin: string }> }) {
   const { isin } = await params;
+  const refresh = request.nextUrl.searchParams.get('refresh') === 'true';
   const db = getDb();
 
   const row = db.prepare('SELECT * FROM instruments WHERE isin = ?').get(isin);
@@ -15,18 +16,20 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
   const instrument = mapInstrumentRow(row as Record<string, unknown>);
   const cacheKey = `instrument:${isin}`;
 
-  // Check cache (valid for 4 hours)
-  const cached = db.prepare(
-    `SELECT * FROM analysis_cache WHERE cache_key = ? AND created_at > datetime('now', '-4 hours')`
-  ).get(cacheKey) as Record<string, unknown> | undefined;
+  // Return cached analysis unless explicit refresh requested
+  if (!refresh) {
+    const cached = db.prepare(
+      `SELECT * FROM analysis_cache WHERE cache_key = ?`
+    ).get(cacheKey) as Record<string, unknown> | undefined;
 
-  if (cached) {
-    return NextResponse.json({
-      content: cached.content,
-      citations: cached.citations ? JSON.parse(cached.citations as string) : [],
-      cached: true,
-      createdAt: cached.created_at,
-    });
+    if (cached) {
+      return NextResponse.json({
+        content: cached.content,
+        citations: cached.citations ? JSON.parse(cached.citations as string) : [],
+        cached: true,
+        createdAt: cached.created_at,
+      });
+    }
   }
 
   const prompt = deepDivePrompt(instrument.name, instrument.isin, instrument.ticker);
