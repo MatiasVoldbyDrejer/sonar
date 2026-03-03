@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "@/components/chat-message";
 import { Send } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Chat, AgentType, Instrument } from "@/types";
 
 interface StoredMessage {
@@ -38,6 +39,7 @@ export function ChatView({ chat }: ChatViewProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [generatingDaily, setGeneratingDaily] = useState(false);
   const [showMentionMenu, setShowMentionMenu] = useState(false);
+  const [mentionIndex, setMentionIndex] = useState(0);
   const [inputValue, setInputValue] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -233,12 +235,31 @@ export function ChatView({ chat }: ChatViewProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showMentionMenu) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionIndex((i) => (i + 1) % AGENTS.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionIndex((i) => (i - 1 + AGENTS.length) % AGENTS.length);
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        insertMention(AGENTS[mentionIndex].id);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setShowMentionMenu(false);
+        return;
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
-    }
-    if (e.key === "Escape") {
-      setShowMentionMenu(false);
     }
   };
 
@@ -254,7 +275,7 @@ export function ChatView({ chat }: ChatViewProps) {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)]">
+    <div className="flex flex-col h-screen">
       {/* Messages */}
       <ScrollArea className="flex-1 px-4" ref={scrollRef}>
         <div className="max-w-3xl mx-auto py-4 space-y-6">
@@ -293,12 +314,16 @@ export function ChatView({ chat }: ChatViewProps) {
         <form onSubmit={handleSubmit} className="max-w-3xl mx-auto relative">
           {showMentionMenu && (
             <div className="glass absolute bottom-full mb-1 left-0 rounded-md shadow-md p-1 z-10">
-              {AGENTS.map((agent) => (
+              {AGENTS.map((agent, i) => (
                 <button
                   key={agent.id}
                   type="button"
-                  className="block w-full text-left text-sm px-3 py-1.5 rounded hover:bg-white/[0.06]"
+                  className={cn(
+                    "block w-full text-left text-sm px-3 py-1.5 rounded",
+                    i === mentionIndex ? "bg-white/[0.06]" : "hover:bg-white/[0.06]"
+                  )}
                   onClick={() => insertMention(agent.id)}
+                  onMouseEnter={() => setMentionIndex(i)}
                 >
                   {agent.label}
                 </button>
@@ -313,13 +338,14 @@ export function ChatView({ chat }: ChatViewProps) {
                 setInputValue(e.target.value);
                 if (e.target.value.endsWith("@")) {
                   setShowMentionMenu(true);
+                  setMentionIndex(0);
                 } else if (!e.target.value.includes("@")) {
                   setShowMentionMenu(false);
                 }
               }}
               onKeyDown={handleKeyDown}
               placeholder="Message @market-analyst or @portfolio-analyst..."
-              className="flex-1 min-h-[44px] max-h-[200px] resize-none rounded-lg bg-white/[0.04] border-white/[0.08] border px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex-1 min-h-[44px] max-h-[200px] resize-none rounded-lg bg-white/[0.04] px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               rows={1}
               disabled={isStreaming || generatingDaily}
             />

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
-import { Header } from "@/components/header";
+import { Sidebar } from "@/components/sidebar";
 import { PositionLookupProvider } from "@/hooks/use-position-lookup";
 import "./globals.css";
 
@@ -30,12 +30,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background`}
       >
-        <Header />
-        <PositionLookupProvider>
-          <main className="container mx-auto px-4 py-6 max-w-7xl">
-            {children}
-          </main>
-        </PositionLookupProvider>
+        <div className="flex h-screen">
+          <Sidebar />
+          <PositionLookupProvider>
+            <main className="flex-1 min-w-0 overflow-auto">
+              {children}
+            </main>
+          </PositionLookupProvider>
+        </div>
         <Toaster />
       </body>
     </html>
