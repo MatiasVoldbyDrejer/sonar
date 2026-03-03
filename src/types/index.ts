@@ -8,6 +8,9 @@ export interface Instrument {
   currency: string;
   exchange: string | null;
   hasQuoteSource: boolean;
+  sector: string | null;
+  industry: string | null;
+  country: string | null;
 }
 
 export interface Account {
@@ -129,6 +132,57 @@ export interface PulseItem {
 export interface PulseResponse {
   summary: string;
   items: PulseItem[];
+}
+
+export interface AllocationSlice {
+  name: string;
+  value: number;
+  percentage: number;
+  costBasis: number;
+  unrealizedGainLoss: number;
+  unrealizedGainLossPercent: number;
+  instruments: Array<{
+    name: string;
+    isin: string;
+    value: number;
+    percentage: number;
+    costBasis: number;
+    unrealizedGainLoss: number;
+    unrealizedGainLossPercent: number;
+  }>;
+}
+
+export interface DiversificationScore {
+  overall: number;
+  sectorHHI: number;
+  industryHHI: number;
+  countryHHI: number;
+  label: 'Low' | 'Moderate' | 'Good' | 'Excellent';
+}
+
+export interface DeepDiveData {
+  totalValue: number;
+  totalCostBasis: number;
+  totalUnrealizedGainLoss: number;
+  totalUnrealizedGainLossPercent: number;
+  totalRealizedGainLoss: number;
+  holdingCount: number;
+  top5Concentration: number;
+  topHoldings: Array<{
+    name: string;
+    ticker: string | null;
+    isin: string;
+    value: number;
+    weight: number;
+    unrealizedGainLoss: number;
+    unrealizedGainLossPercent: number;
+  }>;
+  sectorAllocation: AllocationSlice[];
+  industryAllocation: AllocationSlice[];
+  countryAllocation: AllocationSlice[];
+  diversification: DiversificationScore;
+  unclassifiedValue: number;
+  unclassifiedInstruments: Array<{ name: string; isin: string; value: number }>;
 }
 
 export interface InstrumentStats {

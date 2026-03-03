@@ -4,12 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { BarChart3, MessageSquare, Settings, Activity } from "lucide-react";
+import { BarChart3, PieChart, MessageSquare, Settings } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ChatSummary } from "@/types";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: BarChart3 },
+  { href: "/deepdive", label: "Deepdive", icon: PieChart },
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -58,23 +59,13 @@ export function Sidebar() {
         top: 0,
       }}
     >
-      <div style={{ padding: 12 }}>
+      <div style={{ padding: "12px 20px", marginTop: 8 }}>
         <Link
           href="/"
           style={{ display: "flex", alignItems: "center", gap: 8 }}
         >
-          <Activity
-            style={{ width: 20, height: 20, color: "var(--primary)" }}
-          />
-          <span
-            style={{
-              fontSize: 18,
-              fontWeight: 600,
-              letterSpacing: "-0.025em",
-            }}
-          >
-            Sonar
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="Sonar" style={{ height: 14 }} />
         </Link>
       </div>
 
@@ -132,7 +123,7 @@ export function Sidebar() {
           margin: "12px 0",
         }}
       />
-      <div style={{ padding: "0 12px", marginBottom: 4 }}>
+      <div style={{ padding: "0 20px", marginBottom: 4 }}>
         <span
           style={{
             fontSize: 12,

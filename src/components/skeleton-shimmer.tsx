@@ -58,6 +58,51 @@ export function PulseSkeleton() {
   );
 }
 
+export function DeepDiveSkeleton() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* Hero header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <SkeletonShimmer style={{ height: 16, width: 140 }} />
+          <SkeletonShimmer style={{ height: 48, width: 280 }} />
+          <SkeletonShimmer style={{ height: 20, width: 200 }} />
+          <SkeletonShimmer style={{ height: 14, width: 180 }} />
+        </div>
+        <SkeletonShimmer style={{ height: 160, width: 200, borderRadius: "var(--radius-lg)" }} />
+      </div>
+      {/* Summary stats row */}
+      <div style={{ display: "flex", gap: 12 }}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <SkeletonShimmer key={i} style={{ flex: 1, height: 72, borderRadius: "var(--radius-lg)" }} />
+        ))}
+      </div>
+      {/* Top holdings bar */}
+      <SkeletonShimmer style={{ height: 28, borderRadius: "var(--radius-md)" }} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <SkeletonShimmer key={i} style={{ height: 24, width: "100%" }} />
+        ))}
+      </div>
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 8 }}>
+        <SkeletonShimmer style={{ height: 34, width: 80 }} />
+        <SkeletonShimmer style={{ height: 34, width: 80 }} />
+        <SkeletonShimmer style={{ height: 34, width: 100 }} />
+      </div>
+      {/* Chart + list */}
+      <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 24 }}>
+        <SkeletonShimmer style={{ height: 312, borderRadius: "var(--radius-lg)" }} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonShimmer key={i} style={{ height: 44, width: "100%" }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function InstrumentSkeleton() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>

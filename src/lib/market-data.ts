@@ -129,6 +129,28 @@ export async function searchSymbol(query: string) {
   }
 }
 
+export async function getAssetProfile(symbol: string): Promise<{ sector: string; industry: string; country: string } | null> {
+  try {
+    const result: any = await yf.quoteSummary(symbol, { modules: ['assetProfile'] });
+    const profile = result?.assetProfile;
+    if (!profile) return null;
+
+    const sector = profile.sector as string | undefined;
+    const industry = profile.industry as string | undefined;
+    const country = profile.country as string | undefined;
+
+    if (!sector && !industry && !country) return null;
+
+    return {
+      sector: sector ?? 'Unknown',
+      industry: industry ?? 'Unknown',
+      country: country ?? 'Unknown',
+    };
+  } catch {
+    return null;
+  }
+}
+
 function getStartDate(period: string): string {
   const now = new Date();
   switch (period) {

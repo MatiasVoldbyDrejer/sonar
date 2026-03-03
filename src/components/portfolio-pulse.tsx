@@ -156,7 +156,7 @@ export function PortfolioPulse({ onItemsLoaded }: PortfolioPulseProps) {
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <CircleCheck style={{ height: "1.25rem", width: "1.25rem", color: "var(--gain)", flexShrink: 0 }} />
+          <CircleCheck style={{ height: "1.25rem", width: "1.25rem", color: "var(--primary)", flexShrink: 0 }} />
           <div>
             <p style={{ fontSize: "0.875rem" }}>{state.summary ?? "All quiet — nothing needs your attention right now."}</p>
           </div>

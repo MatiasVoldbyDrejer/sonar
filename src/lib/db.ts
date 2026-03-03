@@ -76,6 +76,13 @@ function initSchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_chats_date ON chats(date);
   `);
 
+  // Migrate: add classification columns to instruments
+  const cols = db.prepare("PRAGMA table_info(instruments)").all() as Array<{ name: string }>;
+  const colNames = new Set(cols.map(c => c.name));
+  if (!colNames.has('sector')) db.exec('ALTER TABLE instruments ADD COLUMN sector TEXT');
+  if (!colNames.has('industry')) db.exec('ALTER TABLE instruments ADD COLUMN industry TEXT');
+  if (!colNames.has('country')) db.exec('ALTER TABLE instruments ADD COLUMN country TEXT');
+
   // Seed default accounts if empty
   const count = db.prepare('SELECT COUNT(*) as count FROM accounts').get() as { count: number };
   if (count.count === 0) {
@@ -97,6 +104,9 @@ export function mapInstrumentRow(row: Record<string, unknown>) {
     currency: row.currency as string,
     exchange: row.exchange as string | null,
     hasQuoteSource: Boolean(row.has_quote_source),
+    sector: (row.sector as string) ?? null,
+    industry: (row.industry as string) ?? null,
+    country: (row.country as string) ?? null,
   };
 }
 
