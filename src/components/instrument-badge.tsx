@@ -73,8 +73,8 @@ export function InstrumentBadge({
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        boxShadow: "0 0 0 1px rgba(255, 255, 255, 0.2)",
-        background: !logoUrl || imgFailed ? "var(--muted)" : "#000",
+        boxShadow: "0 0 0 1px rgba(255, 255, 255, 0.08)",
+        background: !logoUrl || imgFailed ? "var(--muted)" : "oklch(16% 0.002 67.7)",
       }}
     >
       {logoUrl && !imgFailed ? (
@@ -82,7 +82,7 @@ export function InstrumentBadge({
         <img
           src={logoUrl}
           alt={instrument.name}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          style={{ width: "100%", height: "100%", objectFit: "cover", filter: "url(#mono)" }}
           onError={() => setImgFailed(true)}
         />
       ) : (

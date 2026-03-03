@@ -50,8 +50,8 @@ export function PositionHoverContent({ instrument, positions }: PositionHoverCon
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={getLogoUrl(instrument.yahooSymbol)} alt={instrument.name} />
+        <Avatar className="h-8 w-8" style={{ background: "oklch(16% 0.002 67.7)", boxShadow: "0 0 0 1px rgba(255, 255, 255, 0.08)" }}>
+          <AvatarImage src={getLogoUrl(instrument.yahooSymbol)} alt={instrument.name} style={{ filter: "url(#mono)" }} />
           <AvatarFallback className="text-[10px] font-medium bg-muted">
             {getInitials(instrument.name, instrument.ticker)}
           </AvatarFallback>

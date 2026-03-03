@@ -45,6 +45,30 @@ export default function RootLayout({
           </PositionLookupProvider>
         </div>
         <Toaster />
+        {/* Global SVG filter for monochrome logo rendering */}
+        <svg
+          style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}
+          aria-hidden="true"
+        >
+          <defs>
+            <filter id="mono" colorInterpolationFilters="sRGB">
+              <feColorMatrix
+                type="matrix"
+                values="
+                  0.2126 0.7152 0.0722 0 0
+                  0.2126 0.7152 0.0722 0 0
+                  0.2126 0.7152 0.0722 0 0
+                  0      0      0      1 0
+                "
+              />
+              <feComponentTransfer>
+                <feFuncR type="linear" slope="0.65" intercept="0.15" />
+                <feFuncG type="linear" slope="0.65" intercept="0.15" />
+                <feFuncB type="linear" slope="0.65" intercept="0.15" />
+              </feComponentTransfer>
+            </filter>
+          </defs>
+        </svg>
       </body>
     </html>
   );
