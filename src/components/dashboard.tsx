@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ChevronDown, ChevronUp, ChevronsUpDown, ChevronRight } from "lucide-react";
-import type { Position, Account } from "@/types";
+import type { Position, Account, Transaction } from "@/types";
 import Link from "next/link";
 import { formatDKK, formatPercent, portfolioWeight } from "@/lib/utils";
 import { fadeIn } from "@/lib/motion";
@@ -121,6 +121,7 @@ function sortPositions(
 export function Dashboard() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [accountFilter, setAccountFilter] = useState("all");
   const [pulseIsins, setPulseIsins] = useState<Set<string>>(new Set());
@@ -130,14 +131,17 @@ export function Dashboard() {
   const fetchData = useCallback(async (isInitial = false) => {
     if (isInitial) setLoading(true);
     try {
-      const [posRes, accRes] = await Promise.all([
+      const [posRes, accRes, txRes] = await Promise.all([
         fetch("/api/positions"),
         fetch("/api/accounts"),
+        fetch("/api/transactions"),
       ]);
       const posData = await posRes.json();
       const accData = await accRes.json();
+      const txData = await txRes.json();
       setPositions(Array.isArray(posData) ? posData : []);
       setAccounts(Array.isArray(accData) ? accData : []);
+      setTransactions(Array.isArray(txData) ? txData : []);
     } catch {
       // silently handle
     } finally {
@@ -185,6 +189,14 @@ export function Dashboard() {
     () => filteredPositions.filter((p) => p.quantity === 0 && p.realizedGainLoss !== 0),
     [filteredPositions]
   );
+
+  const instrumentLookup = useMemo(() => {
+    const lookup: Record<number, string> = {};
+    for (const p of positions) {
+      lookup[p.instrument.id] = p.instrument.ticker || p.instrument.name;
+    }
+    return lookup;
+  }, [positions]);
 
   if (loading) {
     return <DashboardSkeleton />;
@@ -242,7 +254,9 @@ export function Dashboard() {
       )}
 
       {/* Portfolio Chart */}
-      {allActivePositions.length > 0 && <PortfolioChart />}
+      {allActivePositions.length > 0 && (
+        <PortfolioChart transactions={transactions} instrumentLookup={instrumentLookup} />
+      )}
 
       {/* Portfolio Pulse */}
       {allActivePositions.length > 0 && (

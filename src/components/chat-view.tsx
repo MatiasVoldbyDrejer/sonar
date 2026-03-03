@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ChatMessage } from "@/components/chat-message";
-import { Send, ChevronDown, Briefcase, BarChart3, Check } from "lucide-react";
+import { ArrowUp, ChevronDown, Briefcase, BarChart3, Check } from "lucide-react";
 import type { Chat, AgentType, Instrument } from "@/types";
 
 interface StoredMessage {
@@ -391,7 +391,7 @@ export function ChatView({ chat }: ChatViewProps) {
                     style={{
                       position: "absolute",
                       bottom: "calc(100% + 8px)",
-                      left: -16,
+                      left: -8,
                       minWidth: 220,
                       borderRadius: 12,
                       border: "1px solid rgba(255, 255, 255, 0.08)",
@@ -452,10 +452,12 @@ export function ChatView({ chat }: ChatViewProps) {
                   width: 32,
                   borderRadius: "50%",
                   flexShrink: 0,
+                  background: "var(--foreground)",
+                  color: "var(--background)",
                 }}
                 disabled={!inputValue.trim() || isStreaming || generatingDaily}
               >
-                <Send style={{ width: 14, height: 14 }} />
+                <ArrowUp style={{ width: 16, height: 16 }} />
               </Button>
             </div>
           </div>

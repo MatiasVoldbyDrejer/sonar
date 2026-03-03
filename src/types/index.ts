@@ -78,6 +78,7 @@ export interface TradeMarker {
   fee: number;
   feeCurrency: string | null;
   date: string;
+  instrumentName?: string;
 }
 
 export interface ChartDataPointWithTrades extends ChartDataPoint {
