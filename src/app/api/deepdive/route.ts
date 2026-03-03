@@ -103,8 +103,10 @@ export async function GET() {
     realizedGainLoss: number;
   }>();
   let totalRealizedGainLoss = 0;
+  let totalDividends = 0;
 
   for (const pos of positions) {
+    totalDividends += pos.totalDividends;
     if (pos.quantity <= 0 || !pos.currentValue) continue;
     const existing = mergedByIsin.get(pos.instrument.isin);
     if (existing) {
@@ -238,6 +240,7 @@ export async function GET() {
     totalUnrealizedGainLoss,
     totalUnrealizedGainLossPercent,
     totalRealizedGainLoss: totalRealizedGainLoss,
+    totalDividends,
     holdingCount,
     top5Concentration,
     reportingCurrency,

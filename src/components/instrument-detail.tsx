@@ -153,6 +153,7 @@ export function InstrumentDetail({ isin }: { isin: string }) {
       currentValue: acc.currentValue + (p.currentValue ?? 0),
       unrealizedGainLoss: acc.unrealizedGainLoss + p.unrealizedGainLoss,
       realizedGainLoss: acc.realizedGainLoss + p.realizedGainLoss,
+      totalDividends: acc.totalDividends + (p.totalDividends ?? 0),
     }),
     {
       quantity: 0,
@@ -160,6 +161,7 @@ export function InstrumentDetail({ isin }: { isin: string }) {
       currentValue: 0,
       unrealizedGainLoss: 0,
       realizedGainLoss: 0,
+      totalDividends: 0,
     }
   );
 
@@ -249,6 +251,14 @@ export function InstrumentDetail({ isin }: { isin: string }) {
                   {formatReporting(totalPosition.realizedGainLoss, reportingCurrency)}
                 </span>
               </div>
+              {totalPosition.totalDividends > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--muted-foreground)" }}>Dividends</span>
+                  <span style={{ fontVariantNumeric: "tabular-nums", color: "var(--gain)" }}>
+                    {formatReporting(totalPosition.totalDividends, reportingCurrency)}
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -385,16 +395,19 @@ export function InstrumentDetail({ isin }: { isin: string }) {
                       <TableCell>{tx.date}</TableCell>
                       <TableCell>
                         <Badge
-                          variant={tx.type === "buy" ? "default" : "secondary"}
+                          variant={tx.type === "dividend" ? "outline" : tx.type === "buy" ? "default" : "secondary"}
+                          style={tx.type === "dividend" ? { color: "var(--gain)", borderColor: "var(--gain)" } : undefined}
                         >
                           {tx.type.toUpperCase()}
                         </Badge>
                       </TableCell>
                       <TableCell style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-                        {tx.quantity.toFixed(tx.quantity % 1 === 0 ? 0 : 4)}
+                        {tx.type === "dividend" ? "—" : tx.quantity.toFixed(tx.quantity % 1 === 0 ? 0 : 4)}
                       </TableCell>
                       <TableCell style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-                        {formatCurrency(tx.price, instrument.currency)}
+                        {tx.type === "dividend"
+                          ? formatCurrency(tx.price, instrument.currency)
+                          : formatCurrency(tx.price, instrument.currency)}
                       </TableCell>
                       <TableCell style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                         {tx.fee > 0
@@ -402,7 +415,9 @@ export function InstrumentDetail({ isin }: { isin: string }) {
                           : "—"}
                       </TableCell>
                       <TableCell style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-                        {formatCurrency(tx.quantity * tx.price, instrument.currency)}
+                        {tx.type === "dividend"
+                          ? formatCurrency(tx.price, instrument.currency)
+                          : formatCurrency(tx.quantity * tx.price, instrument.currency)}
                       </TableCell>
                       <TableCell style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
                         {tx.notes || ""}

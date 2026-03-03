@@ -24,7 +24,7 @@ export interface Transaction {
   id: number;
   accountId: number;
   instrumentId: number;
-  type: 'buy' | 'sell';
+  type: 'buy' | 'sell' | 'dividend';
   date: string;
   quantity: number;
   price: number;
@@ -47,6 +47,7 @@ export interface Position {
   currentValue: number | null;
   dayChange: number | null;
   dayChangePercent: number | null;
+  totalDividends: number;
   reportingCurrency: string;
 }
 
@@ -76,7 +77,7 @@ export interface ChartDataPoint {
 }
 
 export interface TradeMarker {
-  type: 'buy' | 'sell';
+  type: 'buy' | 'sell' | 'dividend';
   quantity: number;
   price: number;
   fee: number;
@@ -167,6 +168,7 @@ export interface DeepDiveData {
   totalUnrealizedGainLoss: number;
   totalUnrealizedGainLossPercent: number;
   totalRealizedGainLoss: number;
+  totalDividends: number;
   holdingCount: number;
   top5Concentration: number;
   reportingCurrency: string;

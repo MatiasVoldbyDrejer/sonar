@@ -2,7 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, mapInstrumentRow } from '@/lib/db';
 import { parseNordnetCsv } from '@/lib/import/nordnet';
 import { parseSaxoXlsx } from '@/lib/import/saxo';
+import { searchSymbol } from '@/lib/market-data';
 import type { ParsedTransaction } from '@/lib/import/nordnet';
+
+function mapQuoteType(quoteType: string): 'stock' | 'fund' | 'etf' | 'crypto' {
+  const t = quoteType.toLowerCase();
+  if (t === 'etf') return 'etf';
+  if (t === 'mutualfund') return 'fund';
+  if (t === 'cryptocurrency') return 'crypto';
+  return 'stock';
+}
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
@@ -17,7 +26,20 @@ export async function POST(request: NextRequest) {
   let parsed: ParsedTransaction[] = [];
 
   if (file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
-    const text = await file.text();
+    // Detect UTF-16 encoding (BOM or null bytes) and decode appropriately
+    const buffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let text: string;
+    if ((bytes[0] === 0xFF && bytes[1] === 0xFE) || (bytes[0] === 0xFE && bytes[1] === 0xFF)) {
+      // UTF-16 BOM detected
+      const decoder = new TextDecoder(bytes[0] === 0xFF ? 'utf-16le' : 'utf-16be');
+      text = decoder.decode(buffer);
+    } else if (bytes.length > 2 && bytes[1] === 0x00) {
+      // No BOM but null bytes suggest UTF-16LE
+      text = new TextDecoder('utf-16le').decode(buffer);
+    } else {
+      text = new TextDecoder('utf-8').decode(buffer);
+    }
     parsed = parseNordnetCsv(text);
   } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
     const buffer = await file.arrayBuffer();
@@ -36,10 +58,36 @@ export async function POST(request: NextRequest) {
 
   // Commit — insert into DB
   const db = getDb();
-  const insertInstrument = db.prepare(
+
+  // Resolve new instruments via Yahoo Finance before inserting
+  const getInstrument = db.prepare('SELECT * FROM instruments WHERE isin = ?');
+  const uniqueIsins = [...new Set(parsed.map(tx => tx.isin))];
+  const newIsins = uniqueIsins.filter(isin => !getInstrument.get(isin));
+
+  // Lookup Yahoo Finance data for new instruments in parallel
+  const yahooData = new Map<string, { symbol: string; name: string; exchange: string; type: string }>();
+  if (newIsins.length > 0) {
+    await Promise.allSettled(
+      newIsins.map(async (isin) => {
+        try {
+          const results = await searchSymbol(isin);
+          if (results.length > 0) {
+            yahooData.set(isin, results[0]);
+          }
+        } catch {
+          // silently skip — will fall back to basic insert
+        }
+      })
+    );
+  }
+
+  const insertInstrumentFull = db.prepare(
+    `INSERT OR IGNORE INTO instruments (isin, yahoo_symbol, ticker, name, type, currency, exchange, has_quote_source)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  const insertInstrumentBasic = db.prepare(
     `INSERT OR IGNORE INTO instruments (isin, name, type, currency) VALUES (?, ?, 'stock', ?)`
   );
-  const getInstrument = db.prepare('SELECT * FROM instruments WHERE isin = ?');
   const insertTransaction = db.prepare(
     `INSERT INTO transactions (account_id, instrument_id, type, date, quantity, price, fee, fee_currency)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
@@ -55,8 +103,24 @@ export async function POST(request: NextRequest) {
   let skipped = 0;
   const insertAll = db.transaction(() => {
     for (const tx of parsed) {
-      // Ensure instrument exists
-      insertInstrument.run(tx.isin, tx.name, tx.currency);
+      // Ensure instrument exists — use Yahoo data if available
+      const yahoo = yahooData.get(tx.isin);
+      if (yahoo) {
+        const ticker = yahoo.symbol.includes('.') ? yahoo.symbol.split('.')[0] : yahoo.symbol;
+        insertInstrumentFull.run(
+          tx.isin,
+          yahoo.symbol,
+          ticker,
+          yahoo.name || tx.name,
+          mapQuoteType(yahoo.type),
+          tx.currency,
+          yahoo.exchange || null,
+          1
+        );
+      } else {
+        insertInstrumentBasic.run(tx.isin, tx.name, tx.currency);
+      }
+
       const instrument = getInstrument.get(tx.isin) as Record<string, unknown>;
       if (!instrument) continue;
 

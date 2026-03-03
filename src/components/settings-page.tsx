@@ -613,12 +613,15 @@ function TransactionsTab({
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={tx.type === "buy" ? "default" : "secondary"}>
+                      <Badge
+                        variant={tx.type === "dividend" ? "outline" : tx.type === "buy" ? "default" : "secondary"}
+                        style={tx.type === "dividend" ? { color: "var(--gain)", borderColor: "var(--gain)" } : undefined}
+                      >
                         {tx.type.toUpperCase()}
                       </Badge>
                     </TableCell>
                     <TableCell style={{ textAlign: "right" }}>
-                      {tx.quantity.toFixed(tx.quantity % 1 === 0 ? 0 : 4)}
+                      {tx.type === "dividend" ? "—" : tx.quantity.toFixed(tx.quantity % 1 === 0 ? 0 : 4)}
                     </TableCell>
                     <TableCell style={{ textAlign: "right" }}>
                       {inst
@@ -1003,7 +1006,10 @@ function ImportTab({
                     <TableRow key={i}>
                       <TableCell>{tx.date}</TableCell>
                       <TableCell>
-                        <Badge variant={tx.type === "buy" ? "default" : "secondary"}>
+                        <Badge
+                          variant={tx.type === "dividend" ? "outline" : tx.type === "buy" ? "default" : "secondary"}
+                          style={tx.type === "dividend" ? { color: "var(--gain)", borderColor: "var(--gain)" } : undefined}
+                        >
                           {tx.type.toUpperCase()}
                         </Badge>
                       </TableCell>
@@ -1012,7 +1018,7 @@ function ImportTab({
                       </TableCell>
                       <TableCell>{tx.name}</TableCell>
                       <TableCell style={{ textAlign: "right" }}>
-                        {tx.quantity.toFixed(2)}
+                        {tx.type === "dividend" ? "—" : tx.quantity.toFixed(2)}
                       </TableCell>
                       <TableCell style={{ textAlign: "right" }}>
                         {tx.price.toFixed(2)}

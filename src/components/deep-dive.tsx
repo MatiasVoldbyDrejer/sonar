@@ -57,6 +57,7 @@ function SummaryStats({ data }: { data: DeepDiveData }) {
     { label: "Cost Basis", value: formatAmount(data.totalCostBasis, rc) },
     { label: "Unrealized P/L", value: formatAmount(data.totalUnrealizedGainLoss, rc), color: glColor(data.totalUnrealizedGainLoss) },
     { label: "Realized P/L", value: formatAmount(data.totalRealizedGainLoss, rc), color: glColor(data.totalRealizedGainLoss) },
+    ...(data.totalDividends > 0 ? [{ label: "Dividends", value: formatAmount(data.totalDividends, rc), color: "var(--gain)" }] : []),
     { label: "Top 5 Concentration", value: `${data.top5Concentration.toFixed(1)}%` },
   ];
 

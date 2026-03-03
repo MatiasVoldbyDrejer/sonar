@@ -1,6 +1,6 @@
 export interface ParsedTransaction {
   date: string;
-  type: 'buy' | 'sell';
+  type: 'buy' | 'sell' | 'dividend';
   isin: string;
   name: string;
   quantity: number;
@@ -35,6 +35,13 @@ export function parseNordnetCsv(csvContent: string): ParsedTransaction[] {
   const priceCol = findCol(['kurs', 'pris', 'price']);
   const feeCol = findCol(['transaktionsgebyr', 'kurtasje', 'commission', 'fee']);
   const currencyCol = findCol(['valuta', 'currency']);
+  const amountCol = findCol(['beløb', 'belopp', 'amount']);
+
+  // Find the currency column that follows "Beløb" (for dividend amount currency)
+  // Nordnet has multiple "Valuta" columns — the one after Beløb is the amount currency
+  const amountCurrencyCol = amountCol >= 0
+    ? headers.findIndex((h, idx) => idx > amountCol && (h.includes('valuta') || h.includes('currency')))
+    : -1;
 
   const results: ParsedTransaction[] = [];
 
@@ -43,6 +50,40 @@ export function parseNordnetCsv(csvContent: string): ParsedTransaction[] {
     if (cols.length < 5) continue;
 
     const rawType = typeCol >= 0 ? cols[typeCol]?.toLowerCase() : '';
+
+    const parseNumber = (val: string) => {
+      if (!val) return 0;
+      // Handle Nordic number format: 1.234,56 → 1234.56
+      return parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0;
+    };
+
+    // Parse dividend rows (UDBYTTE but not UDBYTTESKAT)
+    if (rawType === 'udbytte' || rawType === 'utbytte' || rawType === 'dividend') {
+      const isin = isinCol >= 0 ? cols[isinCol] : '';
+      if (!isin || isin.length !== 12) continue;
+
+      const date = dateCol >= 0 ? normalizeDate(cols[dateCol]) : '';
+      if (!date) continue;
+
+      const amount = Math.abs(amountCol >= 0 ? parseNumber(cols[amountCol]) : 0);
+      if (amount === 0) continue;
+
+      const currency = amountCurrencyCol >= 0 ? cols[amountCurrencyCol] || 'DKK' : 'DKK';
+
+      results.push({
+        date,
+        type: 'dividend',
+        isin,
+        name: nameCol >= 0 ? cols[nameCol] : isin,
+        quantity: 0,
+        price: amount,
+        fee: 0,
+        currency,
+        feeCurrency: currency,
+      });
+      continue;
+    }
+
     let txType: 'buy' | 'sell' | null = null;
 
     if (rawType.includes('køb') || rawType.includes('kjøp') || rawType.includes('buy')) {
@@ -55,12 +96,6 @@ export function parseNordnetCsv(csvContent: string): ParsedTransaction[] {
 
     const isin = isinCol >= 0 ? cols[isinCol] : '';
     if (!isin || isin.length !== 12) continue;
-
-    const parseNumber = (val: string) => {
-      if (!val) return 0;
-      // Handle Nordic number format: 1.234,56 → 1234.56
-      return parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0;
-    };
 
     const date = dateCol >= 0 ? normalizeDate(cols[dateCol]) : '';
     if (!date) continue;

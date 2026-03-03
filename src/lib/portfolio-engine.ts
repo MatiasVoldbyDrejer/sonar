@@ -13,6 +13,7 @@ interface PositionResult {
   costBasis: number;
   averagePrice: number;
   realizedGainLoss: number;
+  totalDividends: number;
   lots: Lot[]; // exposed for DKK conversion
 }
 
@@ -26,8 +27,13 @@ export function computePosition(transactions: Transaction[]): PositionResult {
 
   const lots: Lot[] = [];
   let realizedGainLoss = 0;
+  let totalDividends = 0;
 
   for (const tx of sorted) {
+    if (tx.type === 'dividend') {
+      totalDividends += tx.price;
+      continue;
+    }
     if (tx.type === 'buy') {
       const totalCost = tx.quantity * tx.price + tx.fee;
       lots.push({
@@ -75,6 +81,7 @@ export function computePosition(transactions: Transaction[]): PositionResult {
     costBasis,
     averagePrice,
     realizedGainLoss,
+    totalDividends,
     lots,
   };
 }
@@ -111,7 +118,7 @@ export function aggregatePositions(
     if (!instrument) continue;
 
     const result = computePosition(txs);
-    if (result.quantity === 0 && result.realizedGainLoss === 0) continue;
+    if (result.quantity === 0 && result.realizedGainLoss === 0 && result.totalDividends === 0) continue;
 
     const currency = instrument.currency;
     const currentFxRate = currentRates.get(currency) ?? 1.0;
@@ -123,8 +130,9 @@ export function aggregatePositions(
       convertedCostBasis += lot.totalCost * historicalRate;
     }
 
-    // Convert realized gain/loss using current rate (approximation)
+    // Convert realized gain/loss and dividends using current rate (approximation)
     const convertedRealizedGainLoss = result.realizedGainLoss * currentFxRate;
+    const convertedDividends = result.totalDividends * currentFxRate;
 
     // Current value in reporting currency
     const currentPrice = currentPrices.get(instrument.yahooSymbol || instrument.isin) ?? null;
@@ -150,6 +158,7 @@ export function aggregatePositions(
       currentValue: convertedCurrentValue,
       dayChange: null,
       dayChangePercent: null,
+      totalDividends: convertedDividends,
       reportingCurrency,
     });
   }

@@ -108,6 +108,7 @@ function mergePositionsByInstrument(positions: Position[]): Position[] {
       averagePrice: 0,
       realizedGainLoss: group.reduce((s, p) => s + p.realizedGainLoss, 0),
       unrealizedGainLoss: group.reduce((s, p) => s + p.unrealizedGainLoss, 0),
+      totalDividends: group.reduce((s, p) => s + p.totalDividends, 0),
       currentPrice: group[0].currentPrice,
       currentValue: group.reduce((s, p) => s + (p.currentValue ?? 0), 0),
       dayChange: group.some((p) => p.dayChange !== null)
@@ -237,6 +238,7 @@ export function Dashboard() {
   const totalPct = totalCost > 0 ? (totalGainLoss / totalCost) * 100 : 0;
   const totalDayChange = allActivePositions.reduce((sum, p) => sum + (p.dayChange ?? 0), 0);
   const totalRealized = positions.reduce((sum, p) => sum + p.realizedGainLoss, 0);
+  const totalDividends = positions.reduce((sum, p) => sum + (p.totalDividends ?? 0), 0);
   const reportingCurrency = positions[0]?.reportingCurrency ?? 'DKK';
 
   const sortedActivePositions = useMemo(
@@ -291,12 +293,25 @@ export function Dashboard() {
               </span>
             )}
           </div>
-          {totalRealized !== 0 && (
+          {(totalRealized !== 0 || totalDividends > 0) && (
             <p style={{ fontSize: 12, marginTop: 4 }}>
-              <span style={{ color: "var(--muted-foreground)" }}>Realized </span>
-              <span style={{ fontVariantNumeric: "tabular-nums", color: glColor(totalRealized) }}>
-                {formatAmount(totalRealized, reportingCurrency)}
-              </span>
+              {totalRealized !== 0 && (
+                <>
+                  <span style={{ color: "var(--muted-foreground)" }}>Realized </span>
+                  <span style={{ fontVariantNumeric: "tabular-nums", color: glColor(totalRealized) }}>
+                    {formatAmount(totalRealized, reportingCurrency)}
+                  </span>
+                </>
+              )}
+              {totalDividends > 0 && (
+                <>
+                  {totalRealized !== 0 && <span style={{ color: "var(--muted-foreground)" }}> · </span>}
+                  <span style={{ color: "var(--muted-foreground)" }}>Dividends </span>
+                  <span style={{ fontVariantNumeric: "tabular-nums", color: "var(--gain)" }}>
+                    {formatAmount(totalDividends, reportingCurrency)}
+                  </span>
+                </>
+              )}
             </p>
           )}
           <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 4 }}>

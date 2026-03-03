@@ -25,25 +25,36 @@ const chartConfig = {
 };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+function tradeColor(type: string) {
+  if (type === "dividend") return "var(--muted-foreground)";
+  return type === "buy" ? "var(--trade-buy)" : "var(--trade-sell)";
+}
+
 function TradeDot(props: any) {
   const { cx, cy, payload } = props;
   if (!payload?.trades?.length) return null;
 
-  const dominantType = payload.trades[payload.trades.length - 1].type;
-  const color = dominantType === "buy" ? "var(--trade-buy)" : "var(--trade-sell)";
+  const trades = payload.trades as TradeMarker[];
+  const hasBuySell = trades.some(t => t.type !== "dividend");
+  const dominantType = hasBuySell
+    ? trades.filter(t => t.type !== "dividend").slice(-1)[0].type
+    : "dividend";
+  const color = tradeColor(dominantType);
+  const isDividendOnly = dominantType === "dividend";
 
   return (
     <g>
       <circle
         cx={cx}
         cy={cy}
-        r={6}
-        fill={color}
-        stroke="var(--background)"
-        strokeWidth={2}
-        style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))" }}
+        r={isDividendOnly ? 4 : 6}
+        fill={isDividendOnly ? "none" : color}
+        stroke={isDividendOnly ? color : "var(--background)"}
+        strokeWidth={isDividendOnly ? 1.5 : 2}
+        opacity={isDividendOnly ? 0.6 : 1}
+        style={isDividendOnly ? undefined : { filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))" }}
       />
-      {payload.trades.length > 1 && (
+      {!isDividendOnly && trades.length > 1 && (
         <text
           x={cx}
           y={cy + 1}
@@ -53,7 +64,7 @@ function TradeDot(props: any) {
           fontWeight={700}
           fill="var(--background)"
         >
-          {payload.trades.length}
+          {trades.length}
         </text>
       )}
     </g>
@@ -75,18 +86,24 @@ function TradeActiveDot(props: any) {
     );
   }
 
-  const dominantType = payload.trades[payload.trades.length - 1].type;
-  const color = dominantType === "buy" ? "var(--trade-buy)" : "var(--trade-sell)";
+  const trades = payload.trades as TradeMarker[];
+  const hasBuySell = trades.some(t => t.type !== "dividend");
+  const dominantType = hasBuySell
+    ? trades.filter(t => t.type !== "dividend").slice(-1)[0].type
+    : "dividend";
+  const color = tradeColor(dominantType);
+  const isDividendOnly = dominantType === "dividend";
 
   return (
     <circle
       cx={cx}
       cy={cy}
-      r={8}
-      fill={color}
-      stroke="var(--background)"
-      strokeWidth={2}
-      style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.4))" }}
+      r={isDividendOnly ? 5 : 8}
+      fill={isDividendOnly ? "none" : color}
+      stroke={isDividendOnly ? color : "var(--background)"}
+      strokeWidth={isDividendOnly ? 2 : 2}
+      opacity={isDividendOnly ? 0.8 : 1}
+      style={isDividendOnly ? undefined : { filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.4))" }}
     />
   );
 }
@@ -158,8 +175,7 @@ function PortfolioChartTooltip({
                   width: 7,
                   height: 7,
                   borderRadius: "50%",
-                  background:
-                    trade.type === "buy" ? "var(--trade-buy)" : "var(--trade-sell)",
+                  background: tradeColor(trade.type),
                   flexShrink: 0,
                 }}
               />
@@ -171,14 +187,25 @@ function PortfolioChartTooltip({
                   {trade.instrumentName}
                 </span>
               )}
-              <span
-                style={{
-                  color: "var(--muted-foreground)",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                ×{trade.quantity.toFixed(trade.quantity % 1 === 0 ? 0 : 4)}
-              </span>
+              {trade.type === "dividend" ? (
+                <span
+                  style={{
+                    color: "var(--muted-foreground)",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {formatAmount(trade.price, reportingCurrency)}
+                </span>
+              ) : (
+                <span
+                  style={{
+                    color: "var(--muted-foreground)",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  ×{trade.quantity.toFixed(trade.quantity % 1 === 0 ? 0 : 4)}
+                </span>
+              )}
             </div>
           ))}
         </>

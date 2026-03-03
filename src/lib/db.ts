@@ -40,7 +40,7 @@ function initSchema(db: Database.Database) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       account_id INTEGER NOT NULL REFERENCES accounts(id),
       instrument_id INTEGER NOT NULL REFERENCES instruments(id),
-      type TEXT NOT NULL CHECK(type IN ('buy', 'sell')),
+      type TEXT NOT NULL CHECK(type IN ('buy', 'sell', 'dividend')),
       date TEXT NOT NULL,
       quantity REAL NOT NULL,
       price REAL NOT NULL,
@@ -106,6 +106,11 @@ function initSchema(db: Database.Database) {
   } else if (tableExists('accounts_old') && !tableExists('accounts')) {
     db.exec('ALTER TABLE accounts_old RENAME TO accounts');
   }
+  if (tableExists('transactions_old') && tableExists('transactions')) {
+    db.exec('DROP TABLE transactions_old');
+  } else if (tableExists('transactions_old') && !tableExists('transactions')) {
+    db.exec('ALTER TABLE transactions_old RENAME TO transactions');
+  }
 
   const instrumentSql = (db.prepare("SELECT sql FROM sqlite_master WHERE name='instruments'").get() as { sql: string } | undefined)?.sql ?? '';
   if (instrumentSql && !instrumentSql.includes("'crypto'")) {
@@ -149,6 +154,31 @@ function initSchema(db: Database.Database) {
     db.pragma('foreign_keys = ON');
   }
 
+  // Migrate: widen transactions CHECK constraint to include 'dividend'
+  const txSql = (db.prepare("SELECT sql FROM sqlite_master WHERE name='transactions'").get() as { sql: string } | undefined)?.sql ?? '';
+  if (txSql && !txSql.includes("'dividend'")) {
+    db.pragma('foreign_keys = OFF');
+    db.transaction(() => {
+      db.exec(`ALTER TABLE transactions RENAME TO transactions_old`);
+      db.exec(`CREATE TABLE transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        account_id INTEGER NOT NULL REFERENCES accounts(id),
+        instrument_id INTEGER NOT NULL REFERENCES instruments(id),
+        type TEXT NOT NULL CHECK(type IN ('buy', 'sell', 'dividend')),
+        date TEXT NOT NULL,
+        quantity REAL NOT NULL,
+        price REAL NOT NULL,
+        fee REAL NOT NULL DEFAULT 0,
+        fee_currency TEXT,
+        notes TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      )`);
+      db.exec(`INSERT INTO transactions SELECT * FROM transactions_old`);
+      db.exec(`DROP TABLE transactions_old`);
+    })();
+    db.pragma('foreign_keys = ON');
+  }
+
   // Migrate: add wallet_address column to accounts if missing
   const accCols = db.prepare("PRAGMA table_info(accounts)").all() as Array<{ name: string }>;
   const accColNames = new Set(accCols.map(c => c.name));
@@ -186,7 +216,7 @@ export function mapTransactionRow(row: Record<string, unknown>) {
     id: row.id as number,
     accountId: row.account_id as number,
     instrumentId: row.instrument_id as number,
-    type: row.type as 'buy' | 'sell',
+    type: row.type as 'buy' | 'sell' | 'dividend',
     date: row.date as string,
     quantity: row.quantity as number,
     price: row.price as number,
