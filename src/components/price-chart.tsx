@@ -38,7 +38,7 @@ function TradeDot(props: any) {
   // Render a dot for the last trade type (buy/sell) — stacked trades
   // are revealed via the tooltip
   const dominantType = payload.trades[payload.trades.length - 1].type;
-  const color = dominantType === "buy" ? "var(--gain)" : "var(--loss)";
+  const color = dominantType === "buy" ? "var(--trade-buy)" : "var(--trade-sell)";
 
   return (
     <g>
@@ -85,7 +85,7 @@ function TradeActiveDot(props: any) {
   }
 
   const dominantType = payload.trades[payload.trades.length - 1].type;
-  const color = dominantType === "buy" ? "var(--gain)" : "var(--loss)";
+  const color = dominantType === "buy" ? "var(--trade-buy)" : "var(--trade-sell)";
 
   return (
     <circle
@@ -168,7 +168,7 @@ function PriceChartTooltip({
                   height: 7,
                   borderRadius: "50%",
                   background:
-                    trade.type === "buy" ? "var(--gain)" : "var(--loss)",
+                    trade.type === "buy" ? "var(--trade-buy)" : "var(--trade-sell)",
                   flexShrink: 0,
                 }}
               />

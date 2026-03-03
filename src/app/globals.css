@@ -131,6 +131,8 @@
   --gain-muted: oklch(69.92% 0.166 144.58 / 0.15);
   --loss: var(--negative-color);
   --loss-muted: oklch(72.01% 0.178 11.8 / 0.15);
+  --trade-buy: var(--warm-limsa-350);
+  --trade-sell: var(--warm-phoenix-300);
 }
 
 [data-hover="nav-link"]:hover { color: var(--foreground) !important; }
