@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
   if (!name || !broker) {
     return NextResponse.json({ error: 'Missing required fields: name, broker' }, { status: 400 });
   }
-  if (!['saxo', 'nordnet', 'metamask'].includes(broker)) {
-    return NextResponse.json({ error: 'Broker must be saxo, nordnet, or metamask' }, { status: 400 });
+  if (!['saxo', 'nordnet', 'metamask', 'sydbank'].includes(broker)) {
+    return NextResponse.json({ error: 'Broker must be saxo, nordnet, metamask, or sydbank' }, { status: 400 });
   }
 
   const db = getDb();

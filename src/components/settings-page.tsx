@@ -955,7 +955,7 @@ function ImportTab({
         </CardHeader>
         <CardContent style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <p style={{ fontSize: "0.875rem", color: "var(--muted-foreground)" }}>
-            Import transaction history from Nordnet (CSV) or Saxo Invest (XLSX).
+            Import transaction history from Nordnet (CSV), Saxo Invest (XLSX), or Sydbank (CSV).
           </p>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
@@ -1364,6 +1364,7 @@ function AccountsTab({
               <SelectContent>
                 <SelectItem value="nordnet">Nordnet</SelectItem>
                 <SelectItem value="saxo">Saxo</SelectItem>
+                <SelectItem value="sydbank">Sydbank</SelectItem>
                 <SelectItem value="metamask">MetaMask</SelectItem>
               </SelectContent>
             </Select>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, mapInstrumentRow } from '@/lib/db';
 import { parseNordnetCsv } from '@/lib/import/nordnet';
 import { parseSaxoXlsx } from '@/lib/import/saxo';
+import { parseSydbankCsv } from '@/lib/import/sydbank';
 import { searchSymbol } from '@/lib/market-data';
 import type { ParsedTransaction } from '@/lib/import/nordnet';
 
@@ -14,6 +15,7 @@ function mapQuoteType(quoteType: string): 'stock' | 'fund' | 'etf' | 'crypto' {
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const formData = await request.formData();
   const file = formData.get('file') as File;
   const accountId = formData.get('accountId') as string;
@@ -40,7 +42,10 @@ export async function POST(request: NextRequest) {
     } else {
       text = new TextDecoder('utf-8').decode(buffer);
     }
-    parsed = parseNordnetCsv(text);
+    // Auto-detect Sydbank vs Nordnet by checking for Sydbank-specific headers
+    const headerLine = text.split('\n')[0]?.toLowerCase() ?? '';
+    const isSydbank = headerLine.includes('fondskode') || headerLine.includes('depotnummer');
+    parsed = isSydbank ? parseSydbankCsv(text) : parseNordnetCsv(text);
   } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
     const buffer = await file.arrayBuffer();
     parsed = parseSaxoXlsx(buffer);
@@ -138,7 +143,17 @@ export async function POST(request: NextRequest) {
     }
   });
 
-  insertAll();
+  try {
+    insertAll();
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: `Import failed: ${message}` }, { status: 500 });
+  }
 
   return NextResponse.json({ imported, skipped, total: parsed.length });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('Import error:', err);
+    return NextResponse.json({ error: `Import failed: ${message}` }, { status: 500 });
+  }
 }

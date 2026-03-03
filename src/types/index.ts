@@ -16,7 +16,7 @@ export interface Instrument {
 export interface Account {
   id: number;
   name: string;
-  broker: 'saxo' | 'nordnet' | 'metamask';
+  broker: 'saxo' | 'nordnet' | 'metamask' | 'sydbank';
   walletAddress: string | null;
 }
 

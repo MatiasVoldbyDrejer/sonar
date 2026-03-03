@@ -32,7 +32,7 @@ function initSchema(db: Database.Database) {
     CREATE TABLE IF NOT EXISTS accounts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
-      broker TEXT NOT NULL CHECK(broker IN ('saxo', 'nordnet', 'metamask')),
+      broker TEXT NOT NULL CHECK(broker IN ('saxo', 'nordnet', 'metamask', 'sydbank')),
       wallet_address TEXT
     );
 
@@ -179,6 +179,49 @@ function initSchema(db: Database.Database) {
     db.pragma('foreign_keys = ON');
   }
 
+  // Migrate: fix corrupted FK reference (accounts_old → accounts) in transactions table
+  const txSql2 = (db.prepare("SELECT sql FROM sqlite_master WHERE name='transactions'").get() as { sql: string } | undefined)?.sql ?? '';
+  if (txSql2.includes('accounts_old')) {
+    db.pragma('foreign_keys = OFF');
+    db.transaction(() => {
+      db.exec(`ALTER TABLE transactions RENAME TO transactions_old`);
+      db.exec(`CREATE TABLE transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        account_id INTEGER NOT NULL REFERENCES accounts(id),
+        instrument_id INTEGER NOT NULL REFERENCES instruments(id),
+        type TEXT NOT NULL CHECK(type IN ('buy', 'sell', 'dividend')),
+        date TEXT NOT NULL,
+        quantity REAL NOT NULL,
+        price REAL NOT NULL,
+        fee REAL NOT NULL DEFAULT 0,
+        fee_currency TEXT,
+        notes TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      )`);
+      db.exec(`INSERT INTO transactions SELECT * FROM transactions_old`);
+      db.exec(`DROP TABLE transactions_old`);
+    })();
+    db.pragma('foreign_keys = ON');
+  }
+
+  // Migrate: widen accounts CHECK constraint to include 'sydbank'
+  const accSql2 = (db.prepare("SELECT sql FROM sqlite_master WHERE name='accounts'").get() as { sql: string } | undefined)?.sql ?? '';
+  if (accSql2 && !accSql2.includes("'sydbank'")) {
+    db.pragma('foreign_keys = OFF');
+    db.transaction(() => {
+      db.exec(`ALTER TABLE accounts RENAME TO accounts_old`);
+      db.exec(`CREATE TABLE accounts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        broker TEXT NOT NULL CHECK(broker IN ('saxo', 'nordnet', 'metamask', 'sydbank')),
+        wallet_address TEXT
+      )`);
+      db.exec(`INSERT INTO accounts SELECT * FROM accounts_old`);
+      db.exec(`DROP TABLE accounts_old`);
+    })();
+    db.pragma('foreign_keys = ON');
+  }
+
   // Migrate: add wallet_address column to accounts if missing
   const accCols = db.prepare("PRAGMA table_info(accounts)").all() as Array<{ name: string }>;
   const accColNames = new Set(accCols.map(c => c.name));
@@ -231,7 +274,7 @@ export function mapAccountRow(row: Record<string, unknown>) {
   return {
     id: row.id as number,
     name: row.name as string,
-    broker: row.broker as 'saxo' | 'nordnet' | 'metamask',
+    broker: row.broker as 'saxo' | 'nordnet' | 'metamask' | 'sydbank',
     walletAddress: (row.wallet_address as string) ?? null,
   };
 }
