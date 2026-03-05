@@ -103,6 +103,7 @@ export interface ChatSummary {
   id: string;
   date: string;
   title: string;
+  preview?: string;
   createdAt: string;
   updatedAt: string;
 }
