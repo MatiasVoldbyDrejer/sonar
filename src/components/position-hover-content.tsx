@@ -5,9 +5,14 @@ import { formatAmount, formatPercent } from "@/lib/utils";
 import Link from "next/link";
 import type { Position } from "@/types";
 
+// Module-level cache of logo URLs that have 404'd — survives remounts
+const failedLogos = new Set<string>();
+
 function getLogoUrl(symbol: string | null | undefined): string | undefined {
   if (!symbol) return undefined;
-  return `https://assets.parqet.com/logos/symbol/${symbol}`;
+  const url = `https://assets.parqet.com/logos/symbol/${symbol}`;
+  if (failedLogos.has(url)) return undefined;
+  return url;
 }
 
 function getInitials(name: string, ticker?: string | null): string {

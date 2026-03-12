@@ -12,9 +12,14 @@ import Link from "next/link";
 import type { Position } from "@/types";
 import type { ReactNode } from "react";
 
+// Module-level cache of logo URLs that have 404'd — survives remounts
+const failedLogos = new Set<string>();
+
 function getLogoUrl(symbol: string | null | undefined): string | undefined {
   if (!symbol) return undefined;
-  return `https://assets.parqet.com/logos/symbol/${symbol}`;
+  const url = `https://assets.parqet.com/logos/symbol/${symbol}`;
+  if (failedLogos.has(url)) return undefined;
+  return url;
 }
 
 function getInitials(name: string, ticker?: string | null): string {
@@ -83,7 +88,7 @@ export function InstrumentBadge({
           src={logoUrl}
           alt={instrument.name}
           style={{ width: "100%", height: "100%", objectFit: "cover", filter: "url(#mono)" }}
-          onError={() => setImgFailed(true)}
+          onError={() => { if (logoUrl) failedLogos.add(logoUrl); setImgFailed(true); }}
         />
       ) : (
         <span
