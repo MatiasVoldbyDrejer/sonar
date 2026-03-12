@@ -99,3 +99,15 @@ Use **inline styles** (React `style` prop) instead of Tailwind utility classes f
 ```
 
 The `globals.css` `@theme inline` block and `:root` variables are the design token source. shadcn/ui components keep their own className conventions.
+
+## gstack
+
+Use the `/browse` skill from gstack for all web browsing. **Never** use `mcp__claude-in-chrome__*` tools.
+
+Available skills:
+- `/browse` — Web browsing via headless Chromium
+- `/plan-ceo-review` — CEO/founder-mode plan review
+- `/plan-eng-review` — Eng manager-mode plan review
+- `/review` — Pre-landing PR review
+- `/ship` — Ship workflow (merge, test, review, bump, PR)
+- `/retro` — Weekly engineering retrospective
