@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, mapInstrumentRow } from '@/lib/db';
 import { queryPerplexity } from '@/lib/perplexity';
 import { deepDivePrompt } from '@/lib/prompts';
+import { getInvestorProfile } from '@/lib/profile';
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ isin: string }> }) {
   const { isin } = await params;
@@ -32,7 +33,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
   }
 
-  const prompt = deepDivePrompt(instrument.name, instrument.isin, instrument.ticker);
+  const profile = getInvestorProfile();
+  const prompt = deepDivePrompt(instrument.name, instrument.isin, instrument.ticker, profile);
   const result = await queryPerplexity(prompt);
 
   db.prepare(

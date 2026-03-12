@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { BarChart3, PieChart, Clock, SquarePen, Settings } from "lucide-react";
+import { BarChart3, PieChart, Clock, SquarePen, User, Settings } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: BarChart3 },
   { href: "/deepdive", label: "Deepdive", icon: PieChart },
   { href: "/history", label: "History", icon: Clock },
   { href: "/chat", label: "New Thread", icon: SquarePen },
+  { href: "/profile", label: "Profile", icon: User },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

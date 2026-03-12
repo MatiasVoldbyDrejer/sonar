@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db';
 import { loadPositions } from '@/lib/load-positions';
 import { queryPerplexity } from '@/lib/perplexity';
 import { pulsePrompt } from '@/lib/prompts';
+import { getInvestorProfile } from '@/lib/profile';
 import { parsePulseResponse } from '@/lib/pulse-parser';
 import type { PulseResponse } from '@/types';
 
@@ -67,7 +68,8 @@ export async function POST() {
     });
   }
 
-  const prompt = pulsePrompt(active);
+  const profile = getInvestorProfile();
+  const prompt = pulsePrompt(active, profile);
   const { content } = await queryPerplexity(prompt);
 
   const knownIsins = new Set(active.map(p => p.instrument.isin));

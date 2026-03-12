@@ -1,12 +1,37 @@
 import { anthropic } from '@ai-sdk/anthropic';
 import { stepCountIs } from 'ai';
 import { researchTool } from './research-tool';
-import { buildHoldingsList, investorDescription } from '@/lib/prompts';
-import type { Position, InvestorProfile } from '@/types';
+import {
+  quoteTool, portfolioAnalysisTool, chartTool, transactionsTool,
+  searchInstrumentTool, holdingsTool, portfolioPerformanceTool,
+  fxRateTool, fundHoldingsTool,
+} from './tools';
+import { investorDescription } from '@/lib/prompts';
+import type { InvestorProfile } from '@/types';
 
-export function getMainAgentConfig(positions: Position[], profile: InvestorProfile = {}) {
-  const holdingsList = buildHoldingsList(positions, profile.baseCurrency);
+export function getMainAgentConfig(profile: InvestorProfile = {}) {
   const investor = investorDescription(profile);
+
+  const tools = {
+    research: researchTool,
+    get_quote: quoteTool,
+    get_portfolio_analysis: portfolioAnalysisTool,
+    get_chart: chartTool,
+    get_transactions: transactionsTool,
+    search_instrument: searchInstrumentTool,
+    get_holdings: holdingsTool,
+    get_portfolio_performance: portfolioPerformanceTool,
+    get_fx_rate: fxRateTool,
+    get_fund_holdings: fundHoldingsTool,
+  };
+
+  const toolDescriptions = Object.entries(tools)
+    .map(([name, t]) => `**${name}** — ${t.description}`)
+    .join('\n\n');
+
+  const dataToolNames = Object.keys(tools)
+    .filter(name => name !== 'research')
+    .join(', ');
 
   const system = `<role>
 You are Sonar — a world-class investment advisor and portfolio analyst.
@@ -24,15 +49,13 @@ portfolio intimately and provide direct, actionable guidance.
 ${investor}
 </investor_profile>
 
-<portfolio>
-${holdingsList}
-</portfolio>
-
 <capabilities>
 You have access to the following tools:
 
-**research** — Search for current financial news, market data, analyst opinions,
-and real-time information from trusted financial sources.
+${toolDescriptions}
+
+You do NOT have the portfolio pre-loaded. Use get_holdings to see current positions
+when the user asks about their portfolio, holdings, or specific instruments they own.
 
 <when_to_use_research>
 ALWAYS use research when:
@@ -47,6 +70,7 @@ NEVER use research when:
 - You can fully answer from the portfolio data already provided above
 - The question is purely about investment strategy or mental models
 - You are summarizing or re-interpreting research you already retrieved in this conversation
+- You can get the answer from ${dataToolNames}
 </when_to_use_research>
 </capabilities>
 
@@ -85,7 +109,7 @@ IMPORTANT: Follow these rules strictly.
   return {
     model: anthropic('claude-sonnet-4-6'),
     system,
-    tools: { research: researchTool },
-    stopWhen: stepCountIs(5),
+    tools,
+    stopWhen: stepCountIs(4),
   };
 }
