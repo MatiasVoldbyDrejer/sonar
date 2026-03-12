@@ -2,7 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { getQuoteWithStats, getChart, searchSymbol, getFundHoldings } from '@/lib/market-data';
 import { getCurrentRate } from '@/lib/fx';
-import { getDb } from '@/lib/db';
+import { getDb, getAgentMemories, upsertAgentMemory, deleteAgentMemory } from '@/lib/db';
 import { loadPositions } from '@/lib/load-positions';
 import { GET as getDeepDiveData } from '@/app/api/deepdive/route';
 import type { Position } from '@/types';
@@ -276,6 +276,41 @@ export const fxRateTool = tool({
       to: to.toUpperCase(),
       rate: Math.round(rate * 10000) / 10000,
     };
+  },
+});
+
+const MEMORY_CAP = 50;
+
+export const saveMemoryTool = tool({
+  description:
+    'Save a memory about the investor for future conversations. Use when the user shares preferences, corrects your approach, or reveals investment theses. Memories persist across all conversations.',
+  inputSchema: z.object({
+    name: z.string().describe('Kebab-case identifier for the memory (e.g. "prefers-bullet-points", "bullish-on-novo")'),
+    type: z.enum(['preference', 'feedback', 'investment']).describe('preference = communication/analysis style, feedback = corrections to your approach, investment = theses, watchlist rationale'),
+    content: z.string().describe('The memory content (1-3 concise sentences)'),
+  }),
+  execute: async ({ name, type, content }) => {
+    const existing = getAgentMemories();
+    const isUpdate = existing.some(m => m.name === name);
+    if (!isUpdate && existing.length >= MEMORY_CAP) {
+      return { error: `Memory cap reached (${MEMORY_CAP}). Update or delete existing memories first.` };
+    }
+    upsertAgentMemory(name, type, content);
+    return { saved: true, name, type, action: isUpdate ? 'updated' : 'created' };
+  },
+});
+
+export const deleteMemoryTool = tool({
+  description:
+    'Delete a previously saved memory by name. Use when the user asks you to forget something or when a memory is no longer relevant.',
+  inputSchema: z.object({
+    name: z.string().describe('The kebab-case name of the memory to delete'),
+  }),
+  execute: async ({ name }) => {
+    const deleted = deleteAgentMemory(name);
+    return deleted
+      ? { deleted: true, name }
+      : { deleted: false, error: `No memory found with name "${name}"` };
   },
 });
 

@@ -4,10 +4,37 @@ import { researchTool } from './research-tool';
 import {
   quoteTool, portfolioAnalysisTool, chartTool, transactionsTool,
   searchInstrumentTool, holdingsTool, portfolioPerformanceTool,
-  fxRateTool, fundHoldingsTool,
+  fxRateTool, fundHoldingsTool, saveMemoryTool, deleteMemoryTool,
 } from './tools';
 import { investorDescription } from '@/lib/prompts';
+import { getAgentMemories } from '@/lib/db';
+import type { AgentMemory } from '@/lib/db';
 import type { InvestorProfile } from '@/types';
+
+function formatMemories(memories: AgentMemory[]): string {
+  if (memories.length === 0) return '';
+
+  const grouped: Record<string, AgentMemory[]> = { preference: [], feedback: [], investment: [] };
+  for (const m of memories) {
+    grouped[m.type].push(m);
+  }
+
+  const sections: string[] = [];
+  const labels: Record<string, string> = {
+    preference: 'Preferences',
+    feedback: 'Feedback & Corrections',
+    investment: 'Investment Theses & Watchlist',
+  };
+
+  for (const [type, label] of Object.entries(labels)) {
+    const items = grouped[type];
+    if (items.length > 0) {
+      sections.push(`**${label}:**\n${items.map(m => `- [${m.name}] ${m.content}`).join('\n')}`);
+    }
+  }
+
+  return sections.join('\n\n');
+}
 
 export function getMainAgentConfig(profile: InvestorProfile = {}) {
   const investor = investorDescription(profile);
@@ -23,6 +50,8 @@ export function getMainAgentConfig(profile: InvestorProfile = {}) {
     get_portfolio_performance: portfolioPerformanceTool,
     get_fx_rate: fxRateTool,
     get_fund_holdings: fundHoldingsTool,
+    save_memory: saveMemoryTool,
+    delete_memory: deleteMemoryTool,
   };
 
   const toolDescriptions = Object.entries(tools)
@@ -32,6 +61,15 @@ export function getMainAgentConfig(profile: InvestorProfile = {}) {
   const dataToolNames = Object.keys(tools)
     .filter(name => name !== 'research')
     .join(', ');
+
+  const memories = getAgentMemories();
+  const memorySection = memories.length > 0 ? `
+
+<memory>
+${formatMemories(memories)}
+
+You have ${memories.length} saved memories about this investor. Use them to personalize your responses.
+</memory>` : '';
 
   const system = `<role>
 You are Sonar — a world-class investment advisor and portfolio analyst.
@@ -47,7 +85,23 @@ portfolio intimately and provide direct, actionable guidance.
 
 <investor_profile>
 ${investor}
-</investor_profile>
+</investor_profile>${memorySection}
+
+<memory_guidelines>
+Save memories when the investor:
+- Corrects your analysis approach or communication style (type: feedback)
+- Shares preferences about how they want information presented (type: preference)
+- Reveals investment theses, watchlist rationale, or conviction levels (type: investment)
+- Says "remember", "keep in mind", or provides context for future conversations
+- Shares situational context that should inform future advice
+
+Rules:
+- Be concise: 1-3 sentences per memory
+- Update existing memories rather than creating duplicates
+- Do not save transient data (today's price, current market conditions)
+- Save silently — do not announce that you are saving a memory unless asked
+- Use kebab-case names that describe the content (e.g. "prefers-bullet-points")
+</memory_guidelines>
 
 <capabilities>
 You have access to the following tools:

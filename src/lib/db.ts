@@ -81,6 +81,15 @@ function initSchema(db: Database.Database) {
       value TEXT NOT NULL
     );
     INSERT OR IGNORE INTO settings (key, value) VALUES ('reporting_currency', 'DKK');
+
+    CREATE TABLE IF NOT EXISTS agent_memories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('preference', 'feedback', 'investment')),
+      content TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   // Migrate: add classification columns to instruments
@@ -288,4 +297,46 @@ export function getSetting(key: string): string | null {
 export function setSetting(key: string, value: string): void {
   const db = getDb();
   db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
+}
+
+// Agent memory
+
+export interface AgentMemory {
+  id: number;
+  name: string;
+  type: 'preference' | 'feedback' | 'investment';
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function getAgentMemories(): AgentMemory[] {
+  const db = getDb();
+  const rows = db.prepare('SELECT * FROM agent_memories ORDER BY updated_at DESC').all() as Array<Record<string, unknown>>;
+  return rows.map(row => ({
+    id: row.id as number,
+    name: row.name as string,
+    type: row.type as AgentMemory['type'],
+    content: row.content as string,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  }));
+}
+
+export function upsertAgentMemory(name: string, type: AgentMemory['type'], content: string): void {
+  const db = getDb();
+  db.prepare(`
+    INSERT INTO agent_memories (name, type, content)
+    VALUES (?, ?, ?)
+    ON CONFLICT(name) DO UPDATE SET
+      type = excluded.type,
+      content = excluded.content,
+      updated_at = datetime('now')
+  `).run(name, type, content);
+}
+
+export function deleteAgentMemory(name: string): boolean {
+  const db = getDb();
+  const result = db.prepare('DELETE FROM agent_memories WHERE name = ?').run(name);
+  return result.changes > 0;
 }
