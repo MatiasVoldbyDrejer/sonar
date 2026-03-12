@@ -1,44 +1,35 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ChatMessage } from "@/components/chat-message";
-import { ArrowUp, ChevronDown, Briefcase, BarChart3, Check } from "lucide-react";
-import type { Chat, AgentType, Instrument } from "@/types";
+import { ArrowUp } from "lucide-react";
+import type { Chat, Instrument } from "@/types";
 
 interface StoredMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
-  metadata?: { agent?: AgentType; citations?: string[] };
+  metadata?: { citations?: string[] };
 }
-
-const AGENTS: { id: AgentType; label: string; description: string; icon: typeof Briefcase }[] = [
-  { id: "portfolio-analyst", label: "Portfolio Analyst", description: "Analyzes your holdings", icon: Briefcase },
-  { id: "market-analyst", label: "Market Analyst", description: "Tracks market trends", icon: BarChart3 },
-];
 
 interface ChatViewProps {
   chat: Chat | null;
 }
 
 export function ChatView({ chat }: ChatViewProps) {
-  const router = useRouter();
   const isNewThread = chat === null;
   const chatIdRef = useRef<string | null>(chat?.id ?? null);
 
-  const [currentAgent, setCurrentAgent] =
-    useState<AgentType>("portfolio-analyst");
-  const [messages, setMessages] = useState<StoredMessage[]>(chat?.messages ?? []);
+  const [messages, setMessages] = useState<StoredMessage[]>(
+    chat?.messages ?? []
+  );
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [streamingContent, setStreamingContent] = useState("");
-  const [streamingAgent, setStreamingAgent] = useState<AgentType | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isResearching, setIsResearching] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  const [showAgentMenu, setShowAgentMenu] = useState(false);
-  const agentMenuRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -56,18 +47,6 @@ export function ChatView({ chat }: ChatViewProps) {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (agentMenuRef.current && !agentMenuRef.current.contains(e.target as Node)) {
-        setShowAgentMenu(false);
-      }
-    }
-    if (showAgentMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [showAgentMenu]);
-
   const persistMessages = useCallback(
     (msgs: StoredMessage[], id?: string) => {
       const chatId = id ?? chatIdRef.current;
@@ -81,29 +60,30 @@ export function ChatView({ chat }: ChatViewProps) {
     []
   );
 
-  const streamCitationsRef = useRef<string[]>([]);
-
   const streamResponse = useCallback(
     async (
-      apiMessages: Array<{ role: string; content: string }>,
-      agent: AgentType,
+      apiMessages: StoredMessage[],
       chatId: string,
       signal?: AbortSignal
     ): Promise<{ content: string; citations: string[] }> => {
-      setStreamingAgent(agent);
       setStreamingContent("");
-      streamCitationsRef.current = [];
       setIsStreaming(true);
+      setIsResearching(false);
+
+      const citations: string[] = [];
 
       try {
+        // Send as UIMessage format for the AI SDK route
+        const uiMessages = apiMessages.map((m) => ({
+          id: m.id,
+          role: m.role,
+          parts: [{ type: "text", text: m.content }],
+        }));
+
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: apiMessages,
-            chatId,
-            agent,
-          }),
+          body: JSON.stringify({ messages: uiMessages }),
           signal,
         });
 
@@ -126,24 +106,39 @@ export function ChatView({ chat }: ChatViewProps) {
             if (payload === "[DONE]") continue;
             try {
               const parsed = JSON.parse(payload);
-              if (parsed.type === "citations" && parsed.citations) {
-                streamCitationsRef.current = parsed.citations;
+
+              // Track tool calls for "Researching..." indicator
+              if (
+                parsed.type === "tool-input-start" ||
+                parsed.type === "tool-input-available"
+              ) {
+                setIsResearching(true);
               }
+
+              // Tool output — extract citations
+              if (parsed.type === "tool-output-available") {
+                setIsResearching(false);
+                if (parsed.output?.citations?.length) {
+                  citations.push(...parsed.output.citations);
+                }
+              }
+
+              // Text content streaming
               if (parsed.type === "text-delta" && parsed.delta) {
                 content += parsed.delta;
                 setStreamingContent(content);
               }
             } catch {
-              // skip
+              // skip unparseable lines
             }
           }
         }
 
-        return { content, citations: streamCitationsRef.current };
+        return { content, citations };
       } finally {
         setIsStreaming(false);
         setStreamingContent("");
-        setStreamingAgent(null);
+        setIsResearching(false);
       }
     },
     []
@@ -152,8 +147,6 @@ export function ChatView({ chat }: ChatViewProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || isStreaming) return;
-
-    const agent = currentAgent;
 
     const userMsg: StoredMessage = {
       id: `msg_user_${Date.now()}`,
@@ -177,23 +170,18 @@ export function ChatView({ chat }: ChatViewProps) {
         const newChat = await res.json();
         chatId = newChat.id;
         chatIdRef.current = chatId;
+        window.history.replaceState(null, "", `/chat/${chatId}`);
       } catch {
         console.error("Failed to create chat");
         return;
       }
     }
 
-    const apiMessages = updatedMessages.map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
-
     abortRef.current = new AbortController();
 
     try {
       const result = await streamResponse(
-        apiMessages,
-        agent,
+        updatedMessages,
         chatId!,
         abortRef.current.signal
       );
@@ -202,17 +190,14 @@ export function ChatView({ chat }: ChatViewProps) {
         id: `msg_${Date.now()}`,
         role: "assistant",
         content: result.content,
-        metadata: { agent, citations: result.citations },
+        metadata: {
+          citations: result.citations.length > 0 ? result.citations : undefined,
+        },
       };
 
       const finalMessages = [...updatedMessages, assistantMsg];
       setMessages(finalMessages);
       persistMessages(finalMessages, chatId!);
-
-      // Navigate to the new chat URL if this was a new thread
-      if (isNewThread && chatId) {
-        router.replace(`/chat/${chatId}`);
-      }
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         console.error("Chat error:", err);
@@ -246,7 +231,7 @@ export function ChatView({ chat }: ChatViewProps) {
           background: "rgba(255, 255, 255, 0.04)",
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
-          boxShadow: "0 0 4px 2pxrgba(0, 0, 0, 0.08)",
+          boxShadow: "0 0 4px 2px rgba(0, 0, 0, 0.08)",
           padding: "12px 16px",
         }}
       >
@@ -276,91 +261,10 @@ export function ChatView({ chat }: ChatViewProps) {
           style={{
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
+            justifyContent: "flex-end",
             marginTop: 8,
           }}
         >
-          {/* Agent dropdown */}
-          <div ref={agentMenuRef} style={{ position: "relative" }}>
-            <button
-              type="button"
-              onClick={() => setShowAgentMenu((v) => !v)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: 12,
-                fontWeight: 500,
-                color: "var(--color-muted-foreground)",
-                background: "none",
-                border: "none",
-                padding: "4px 0",
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              {AGENTS.find((a) => a.id === currentAgent)?.label}
-              <ChevronDown style={{ width: 12, height: 12 }} />
-            </button>
-
-            {showAgentMenu && (
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: "calc(100% + 8px)",
-                  left: -8,
-                  minWidth: 220,
-                  borderRadius: 12,
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                  background: "var(--popover)",
-                  boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
-                  padding: 4,
-                  zIndex: 30,
-                }}
-              >
-                {AGENTS.map((agent) => {
-                  const Icon = agent.icon;
-                  const isSelected = currentAgent === agent.id;
-                  return (
-                    <button
-                      key={agent.id}
-                      type="button"
-                      onClick={() => {
-                        setCurrentAgent(agent.id);
-                        setShowAgentMenu(false);
-                      }}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "10px 12px",
-                        borderRadius: 8,
-                        background: "transparent",
-                        border: "none",
-                        color: "inherit",
-                        cursor: "pointer",
-                        font: "inherit",
-                      }}
-                      data-hover="search-result"
-                    >
-                      <Icon style={{ width: 14, height: 14, flexShrink: 0, color: "var(--muted-foreground)" }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12 }}>{agent.label}</div>
-                        <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{agent.description}</div>
-                      </div>
-                      {isSelected && (
-                        <Check style={{ width: 14, height: 14, flexShrink: 0, color: "var(--primary)" }} />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Send button */}
           <Button
             type="submit"
             size="icon"
@@ -402,7 +306,11 @@ export function ChatView({ chat }: ChatViewProps) {
             <motion.img
               src="/logo.svg"
               alt="Sonar"
-              style={{ height: 40, marginBottom: 32, color: "var(--muted-foreground)" }}
+              style={{
+                height: 40,
+                marginBottom: 32,
+                color: "var(--muted-foreground)",
+              }}
               exit={{ opacity: 0, scale: 1.1, y: -20 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             />
@@ -416,7 +324,10 @@ export function ChatView({ chat }: ChatViewProps) {
             transition={{ duration: 0.3, ease: "easeOut" }}
             style={{ display: "flex", flexDirection: "column", flex: 1 }}
           >
-            <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "0 16px" }}>
+            <div
+              ref={scrollRef}
+              style={{ flex: 1, overflowY: "auto", padding: "0 16px" }}
+            >
               <div
                 style={{
                   maxWidth: 768,
@@ -433,30 +344,23 @@ export function ChatView({ chat }: ChatViewProps) {
                     key={message.id}
                     role={message.role}
                     content={message.content}
-                    agent={message.metadata?.agent}
                     citations={message.metadata?.citations}
                     instruments={instruments}
                   />
                 ))}
 
-                {isStreaming && streamingAgent && (
+                {isStreaming && (
                   <ChatMessage
                     role="assistant"
                     content={streamingContent}
-                    agent={streamingAgent}
-                    citations={
-                      streamCitationsRef.current.length > 0
-                        ? streamCitationsRef.current
-                        : undefined
-                    }
                     isStreaming
+                    isResearching={isResearching && !streamingContent}
                     instruments={instruments}
                   />
                 )}
               </div>
             </div>
 
-            {/* Chat input — fixed to bottom */}
             <div
               style={{
                 position: "fixed",

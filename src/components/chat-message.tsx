@@ -1,35 +1,24 @@
 "use client";
 
 import { MarkdownContent } from "@/components/markdown-content";
-import { BarChart3, Briefcase } from "lucide-react";
-import type { AgentType, Instrument } from "@/types";
-
-const agentConfig = {
-  "market-analyst": {
-    label: "MARKET ANALYST",
-    icon: BarChart3,
-  },
-  "portfolio-analyst": {
-    label: "PORTFOLIO ANALYST",
-    icon: Briefcase,
-  },
-} as const;
+import { Activity, Loader2 } from "lucide-react";
+import type { Instrument } from "@/types";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
-  agent?: AgentType;
   citations?: string[];
   isStreaming?: boolean;
+  isResearching?: boolean;
   instruments?: Instrument[];
 }
 
 export function ChatMessage({
   role,
   content,
-  agent,
   citations,
   isStreaming,
+  isResearching,
   instruments,
 }: ChatMessageProps) {
   if (role === "user") {
@@ -46,11 +35,6 @@ export function ChatMessage({
     );
   }
 
-  const config = agent
-    ? agentConfig[agent]
-    : agentConfig["portfolio-analyst"];
-  const Icon = config.icon;
-
   return (
     <div style={{ padding: "4px 0" }}>
       <div
@@ -61,7 +45,7 @@ export function ChatMessage({
           marginBottom: 8,
         }}
       >
-        <Icon
+        <Activity
           style={{
             width: 14,
             height: 14,
@@ -77,10 +61,31 @@ export function ChatMessage({
             color: "var(--muted-foreground)",
           }}
         >
-          {config.label}
+          SONAR
         </span>
       </div>
       <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+        {isResearching && !content && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 13,
+              color: "var(--muted-foreground)",
+              marginBottom: content ? 12 : 0,
+            }}
+          >
+            <Loader2
+              style={{
+                width: 14,
+                height: 14,
+                animation: "spin 1s linear infinite",
+              }}
+            />
+            Researching...
+          </div>
+        )}
         {content ? (
           <div className={isStreaming ? "blink-cursor" : undefined}>
             <MarkdownContent
@@ -89,12 +94,12 @@ export function ChatMessage({
               instruments={instruments}
             />
           </div>
-        ) : (
+        ) : !isResearching ? (
           <span
             className="blink-cursor"
             style={{ fontSize: 14, color: "var(--muted-foreground)" }}
           />
-        )}
+        ) : null}
       </div>
     </div>
   );

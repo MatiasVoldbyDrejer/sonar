@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.58",
     "@ai-sdk/perplexity": "^3.0.20",
     "@ai-sdk/react": "^3.0.108",
     "@tailwindcss/typography": "^0.5.19",

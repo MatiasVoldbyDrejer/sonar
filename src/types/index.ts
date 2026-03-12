@@ -114,11 +114,10 @@ export interface ChatMessage {
   content: string;
   createdAt?: string;
   metadata?: {
-    agent?: 'market-analyst' | 'portfolio-analyst';
+    agent?: string;
+    citations?: string[];
   };
 }
-
-export type AgentType = 'market-analyst' | 'portfolio-analyst';
 
 export type PulseSignalType = 'earnings' | 'risk' | 'analyst-change' | 'opportunity' | 'catalyst' | 'news';
 
@@ -188,6 +187,32 @@ export interface DeepDiveData {
   diversification: DiversificationScore;
   unclassifiedValue: number;
   unclassifiedInstruments: Array<{ name: string; isin: string; value: number }>;
+}
+
+export interface InvestorProfile {
+  // Identity
+  name?: string;
+  birthYear?: number;
+  location?: string;
+  baseCurrency?: string;
+
+  // Investment style
+  riskTolerance?: 'conservative' | 'moderate' | 'aggressive';
+  timeHorizon?: 'short' | 'medium' | 'long';  // <3y, 3-10y, 10y+
+  investmentGoals?: string[];  // retirement, wealth-building, income, capital-preservation, speculation
+
+  // Focus areas
+  regionFocus?: string[];     // Nordics, Europe, US, Asia, Emerging Markets, Global
+  sectorInterests?: string[];
+  assetTypePreferences?: string[];  // stocks, funds, etf, crypto, bonds
+
+  // Financial context
+  incomeBracket?: string;
+  netWorthRange?: string;
+  investmentExperience?: 'beginner' | 'intermediate' | 'advanced';
+
+  // Free-form
+  notes?: string;  // injected directly into AI context
 }
 
 export interface InstrumentStats {

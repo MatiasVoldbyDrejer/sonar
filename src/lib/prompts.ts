@@ -1,26 +1,35 @@
-import type { Position } from '@/types';
+import type { Position, InvestorProfile } from '@/types';
+import { buildProfileContext } from '@/lib/profile';
 
-function formatDKK(value: number): string {
-  return new Intl.NumberFormat('da-DK', { style: 'currency', currency: 'DKK', minimumFractionDigits: 0 }).format(value);
+function formatCurrency(value: number, currency: string): string {
+  return new Intl.NumberFormat('da-DK', { style: 'currency', currency, minimumFractionDigits: 0 }).format(value);
 }
 
-function buildHoldingsList(positions: Position[]): string {
+export function buildHoldingsList(positions: Position[], baseCurrency?: string): string {
   const active = positions.filter(p => p.quantity > 0);
   if (active.length === 0) return 'No current holdings.';
 
   return active
     .map(p => {
-      const value = p.currentValue !== null ? `, value: ${formatDKK(p.currentValue)}` : '';
-      const cost = `, cost basis: ${formatDKK(p.costBasis)}`;
+      const currency = baseCurrency || p.reportingCurrency || 'DKK';
+      const value = p.currentValue !== null ? `, value: ${formatCurrency(p.currentValue, currency)}` : '';
+      const cost = `, cost basis: ${formatCurrency(p.costBasis, currency)}`;
       return `- ${p.instrument.name} (${p.instrument.isin}, ${p.instrument.ticker || 'no ticker'}) — ${p.quantity} units (${p.instrument.currency})${cost}${value}`;
     })
     .join('\n');
 }
 
-export function marketAnalystSystemPrompt(positions: Position[]): string {
-  const holdingsList = buildHoldingsList(positions);
+export function investorDescription(profile: InvestorProfile): string {
+  const context = buildProfileContext(profile);
+  if (context === 'a retail investor') return 'a retail investor';
+  return context;
+}
 
-  return `You are the Market Analyst — a senior macro strategist providing daily market intelligence to a European retail investor based in Denmark.
+export function marketAnalystSystemPrompt(positions: Position[], profile: InvestorProfile = {}): string {
+  const holdingsList = buildHoldingsList(positions, profile.baseCurrency);
+  const investor = investorDescription(profile);
+
+  return `You are the Market Analyst — a senior macro strategist providing daily market intelligence to ${investor}
 
 Your role: Cover broad market conditions, macro trends, and events that matter for this investor's portfolio.
 
@@ -36,7 +45,7 @@ ${holdingsList}
 6. **Week ahead** — key upcoming events and data releases
 
 **Guidelines:**
-- Focus on what matters for a European investor with the specific holdings listed above
+- Focus on what matters for this investor with the specific holdings listed above
 - Be factual and cite specific numbers
 - Use markdown formatting
 - Keep it concise (500-800 words for daily briefings)
@@ -49,12 +58,13 @@ Use the ticker and ISIN exactly as shown in the holdings list above.
 Do NOT wrap instrument references in markdown links — always use the {{TICKER|ISIN}} format instead.`;
 }
 
-export function portfolioAnalystSystemPrompt(positions: Position[]): string {
-  const holdingsList = buildHoldingsList(positions);
+export function portfolioAnalystSystemPrompt(positions: Position[], profile: InvestorProfile = {}): string {
+  const holdingsList = buildHoldingsList(positions, profile.baseCurrency);
+  const investor = investorDescription(profile);
 
   return `You are the Portfolio Analyst — a dedicated investment advisor monitoring this specific portfolio for actionable intelligence.
 
-Your role: Analyze the investor's holdings for news, risks, and opportunities. Only flag holdings where something notable is happening.
+Your role: Analyze the investor's holdings for news, risks, and opportunities. Only flag holdings where something notable is happening. ${investor !== 'a retail investor' ? `\n\n**Investor profile:** ${investor}` : ''}
 
 **The investor's current holdings:**
 ${holdingsList}
@@ -81,10 +91,13 @@ Use the ticker and ISIN exactly as shown in the holdings list above.
 Do NOT wrap instrument references in markdown links — always use the {{TICKER|ISIN}} format instead.`;
 }
 
-export function pulsePrompt(positions: Position[]): string {
-  const holdingsList = buildHoldingsList(positions);
+export function pulsePrompt(positions: Position[], profile: InvestorProfile = {}): string {
+  const holdingsList = buildHoldingsList(positions, profile.baseCurrency);
+  const profileContext = profile && Object.keys(profile).length > 0
+    ? `\n\n**Investor profile:** ${investorDescription(profile)}`
+    : '';
 
-  return `You are a portfolio intelligence system. Scan the investor's holdings for actionable signals from the past few days.
+  return `You are a portfolio intelligence system. Scan the investor's holdings for actionable signals from the past few days.${profileContext}
 
 **Current holdings:**
 ${holdingsList}
@@ -127,10 +140,13 @@ Return ONLY a JSON code block in this exact format:
 \`\`\``;
 }
 
-export function deepDivePrompt(name: string, isin: string, ticker: string | null): string {
+export function deepDivePrompt(name: string, isin: string, ticker: string | null, profile: InvestorProfile = {}): string {
   const identifier = ticker ? `${name} (${ticker}, ISIN: ${isin})` : `${name} (ISIN: ${isin})`;
+  const profileContext = profile && Object.keys(profile).length > 0
+    ? `\n\nAnalyze from the perspective of this investor: ${investorDescription(profile)}`
+    : '';
 
-  return `You are a senior equity analyst. Provide a comprehensive analysis of ${identifier}.
+  return `You are a senior equity analyst. Provide a comprehensive analysis of ${identifier}.${profileContext}
 
 Cover the following:
 1. **Company overview** — what the company does, key markets, competitive position

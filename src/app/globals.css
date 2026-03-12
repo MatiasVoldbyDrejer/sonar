@@ -182,6 +182,11 @@
   animation: blink-cursor 1.06s step-end infinite;
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--warm-umbra-300) transparent;
