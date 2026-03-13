@@ -185,7 +185,7 @@ async function getCachedPositions(): Promise<Position[]> {
 
 export const holdingsTool = tool({
   description:
-    "Get the investor's current portfolio holdings with quantities, cost basis, and current values. Use this when the user asks about their portfolio, holdings, or specific instruments they own.",
+    "Get the investor's individual portfolio holdings with quantities, cost basis, and current values. Use this when the user asks about specific positions, allocation breakdown, or individual instruments they own. Do NOT use for total portfolio value — use get_portfolio_value instead.",
   inputSchema: z.object({}),
   execute: async () => {
     const positions = await getCachedPositions();
@@ -266,7 +266,7 @@ export const portfolioPerformanceTool = tool({
 
 export const portfolioValueTool = tool({
   description:
-    'Get the current portfolio value and gains over 1 day, 7 days, and 30 days.',
+    'Get total portfolio value and recent gains (1d, 7d, 30d). Use this when the user asks "what\'s my portfolio worth?", total value, or how the portfolio is doing. Returns a single summary — no individual positions.',
   inputSchema: z.object({}),
   execute: async () => {
     // Use live positions for current value (matches dashboard)
