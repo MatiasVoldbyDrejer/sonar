@@ -160,8 +160,8 @@ async function handleUpdate(update: Record<string, unknown>) {
         modelId: step.response?.modelId ?? 'gemini-flash',
         finishReason: step.finishReason ?? 'unknown',
       })),
-      totalInputTokens: result.usage?.inputTokens ?? 0,
-      totalOutputTokens: result.usage?.outputTokens ?? 0,
+      totalInputTokens: result.steps.reduce((sum: number, s: any) => sum + (s.usage?.inputTokens ?? 0), 0),
+      totalOutputTokens: result.steps.reduce((sum: number, s: any) => sum + (s.usage?.outputTokens ?? 0), 0),
       durationMs: Date.now() - startTime,
       finishReason: result.finishReason ?? 'unknown',
     });

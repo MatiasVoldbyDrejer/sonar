@@ -38,8 +38,8 @@ export async function POST(req: Request) {
             modelId: step.response?.modelId ?? model ?? 'unknown',
             finishReason: step.finishReason ?? 'unknown',
           })),
-          totalInputTokens: usage?.inputTokens ?? 0,
-          totalOutputTokens: usage?.outputTokens ?? 0,
+          totalInputTokens: steps.reduce((sum, s) => sum + (s.usage?.inputTokens ?? 0), 0),
+          totalOutputTokens: steps.reduce((sum, s) => sum + (s.usage?.outputTokens ?? 0), 0),
           durationMs: Date.now() - startTime,
           finishReason: finishReason ?? 'unknown',
         });
