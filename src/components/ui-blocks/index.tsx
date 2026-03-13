@@ -1,10 +1,12 @@
 "use client";
 
 import { RecurringTaskBlock } from "./recurring-task-block";
+import { ChartBlock } from "./chart-block";
 
 // Registry of UI block types → components
 const blockComponents: Record<string, React.ComponentType<{ data: any }>> = {
   "recurring-task": RecurringTaskBlock,
+  "chart": ChartBlock,
 };
 
 export interface UIBlockData {

@@ -41,6 +41,23 @@ const blocks: UIBlockDef[] = [
       'MUST choose the model based on task complexity when calling create_recurring_task: gemini-flash for simple summaries, status updates, price checks; sonnet for analysis requiring reasoning, comparisons, recommendations; opus for complex multi-step research, deep portfolio reviews.',
     ],
   },
+  {
+    name: 'chart',
+    tag: 'chart-block',
+    description: 'Interactive area chart with optional horizontal annotation lines for support, resistance, and price targets.',
+    fields: {
+      title: 'string — chart title (e.g. "Novo Nordisk (NOVO-B.CO) — 1Y")',
+      currency: 'string — currency code for Y-axis formatting (e.g. "DKK", "USD")',
+      dataPoints: 'array of { date: string, close: number } — price/value series, max 50 points',
+      annotations: 'array of { value: number, label: string, type: "support" | "resistance" | "target" } — optional horizontal reference lines',
+    },
+    rules: [
+      'MUST emit a <chart-block> when discussing price action, technical levels, or performance and chart data is available from get_chart or get_portfolio_performance.',
+      'MUST use the dataPoints array directly from the tool result — do not fabricate data.',
+      'NEVER include more than 50 data points.',
+      'MUST add annotations for any support, resistance, or price target levels mentioned in your analysis.',
+    ],
+  },
 ];
 
 function formatBlockExample(block: UIBlockDef): string {
