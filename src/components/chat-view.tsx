@@ -121,9 +121,8 @@ export function ChatView({ chat }: ChatViewProps) {
         let lineBuffer = "";
         let sawTool = false;
         let toolsDone = false;
-        let finalTextStarted = false;
-        let pureTextMode = false;
-        let pureTextTimer: ReturnType<typeof setTimeout> | null = null;
+        let showingFinalText = false;
+        let textFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -143,9 +142,8 @@ export function ChatView({ chat }: ChatViewProps) {
               if (parsed.type === "tool-input-start") {
                 sawTool = true;
                 toolsDone = false;
-                finalTextStarted = false;
-                pureTextMode = false;
-                if (pureTextTimer) { clearTimeout(pureTextTimer); pureTextTimer = null; }
+                showingFinalText = false;
+                if (textFlushTimer) { clearTimeout(textFlushTimer); textFlushTimer = null; }
                 setIsWorking(true);
                 content = "";
                 setStreamingContent("");
@@ -159,33 +157,24 @@ export function ChatView({ chat }: ChatViewProps) {
                 }
               }
 
-              // Text content streaming — suppress intermediate reasoning between tool calls
+              // Text content streaming — suppress intermediate reasoning between tool calls.
+              // Buffer text and delay display by 300ms. If a tool-input-start arrives
+              // before the timer fires, the buffered text is discarded.
               if (parsed.type === "text-delta" && parsed.delta) {
-                if (pureTextMode) {
-                  // Confirmed pure text response — stream directly
+                if (showingFinalText) {
+                  // Timer already confirmed this is final text — stream directly
                   content += parsed.delta;
                   setStreamingContent(content);
-                } else if (!sawTool) {
-                  // No tools seen yet — buffer and start a timer.
-                  // If no tool-input-start arrives soon, switch to pure text mode.
+                } else if (!sawTool || toolsDone) {
+                  // Either pre-tool or post-tool text — buffer silently
                   content += parsed.delta;
-                  if (!pureTextTimer) {
-                    pureTextTimer = setTimeout(() => {
-                      pureTextMode = true;
+                  if (!textFlushTimer) {
+                    textFlushTimer = setTimeout(() => {
+                      showingFinalText = true;
                       setIsWorking(false);
                       setStreamingContent(content);
-                    }, 150);
+                    }, 300);
                   }
-                } else if (finalTextStarted) {
-                  // Already confirmed this is the final response after tools
-                  content += parsed.delta;
-                  setStreamingContent(content);
-                } else if (toolsDone) {
-                  // First text after tool output — show it (cleared if more tools come)
-                  finalTextStarted = true;
-                  content += parsed.delta;
-                  setIsWorking(false);
-                  setStreamingContent(content);
                 }
                 // else: text between tool-input-start and tool-output — suppress
               }
@@ -195,7 +184,7 @@ export function ChatView({ chat }: ChatViewProps) {
           }
         }
 
-        if (pureTextTimer) clearTimeout(pureTextTimer);
+        if (textFlushTimer) clearTimeout(textFlushTimer);
         return { content, citations };
       } finally {
         setIsStreaming(false);
