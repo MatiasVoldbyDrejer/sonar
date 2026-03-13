@@ -73,6 +73,8 @@ export function HistoryPage() {
           alignItems: "center",
           justifyContent: "space-between",
           padding: "8px 16px",
+          height: 49,
+          boxSizing: "border-box",
           borderBottom: "1px solid var(--border)",
           flexShrink: 0,
         }}

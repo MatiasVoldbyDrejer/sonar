@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { BarChart3, PieChart, Clock, CalendarClock, SquarePen, User, Settings } from "lucide-react";
+import { BarChart3, PieChart, Clock, CalendarClock, SquarePen, User, ListTree, Settings } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: BarChart3 },
@@ -12,6 +12,7 @@ const navItems = [
   { href: "/tasks", label: "Tasks", icon: CalendarClock },
   { href: "/chat", label: "New Thread", icon: SquarePen },
   { href: "/profile", label: "Profile", icon: User },
+  { href: "/traces", label: "Traces", icon: ListTree },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -28,7 +29,7 @@ export function Sidebar() {
     <aside
       className="glass"
       style={{
-        width: 224,
+        width: 200,
         flexShrink: 0,
         display: "flex",
         flexDirection: "column",

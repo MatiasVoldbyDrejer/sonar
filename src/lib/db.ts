@@ -108,6 +108,20 @@ function initSchema(db: Database.Database) {
       code TEXT PRIMARY KEY,
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS traces (
+      id TEXT PRIMARY KEY,
+      chat_id TEXT,
+      model_id TEXT,
+      prompt TEXT,
+      response_text TEXT,
+      steps TEXT,
+      total_input_tokens INTEGER,
+      total_output_tokens INTEGER,
+      duration_ms INTEGER,
+      finish_reason TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   // Migrate: whatsapp → telegram in chats source
@@ -372,4 +386,107 @@ export function deleteAgentMemory(name: string): boolean {
   const db = getDb();
   const result = db.prepare('DELETE FROM agent_memories WHERE name = ?').run(name);
   return result.changes > 0;
+}
+
+// Traces
+
+export interface TraceStep {
+  index: number;
+  text: string;
+  toolCalls: { toolName: string; args: unknown }[];
+  toolResults: { toolName: string; args: unknown; result: unknown }[];
+  inputTokens: number;
+  outputTokens: number;
+  modelId: string;
+  finishReason: string;
+}
+
+export interface Trace {
+  id: string;
+  chatId: string | null;
+  modelId: string;
+  prompt: string;
+  responseText: string;
+  steps: TraceStep[];
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  durationMs: number;
+  finishReason: string;
+  createdAt: string;
+}
+
+export interface TraceSummary {
+  id: string;
+  chatId: string | null;
+  modelId: string;
+  prompt: string;
+  toolCount: number;
+  stepCount: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  durationMs: number;
+  createdAt: string;
+}
+
+export function createTrace(data: {
+  id: string;
+  chatId: string | null;
+  modelId: string;
+  prompt: string;
+  responseText: string;
+  steps: TraceStep[];
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  durationMs: number;
+  finishReason: string;
+}): void {
+  const db = getDb();
+  db.prepare(`
+    INSERT INTO traces (id, chat_id, model_id, prompt, response_text, steps, total_input_tokens, total_output_tokens, duration_ms, finish_reason)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    data.id, data.chatId, data.modelId, data.prompt, data.responseText,
+    JSON.stringify(data.steps), data.totalInputTokens, data.totalOutputTokens,
+    data.durationMs, data.finishReason
+  );
+}
+
+export function getTraceById(id: string): Trace | null {
+  const db = getDb();
+  const row = db.prepare('SELECT * FROM traces WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+  if (!row) return null;
+  return {
+    id: row.id as string,
+    chatId: (row.chat_id as string) ?? null,
+    modelId: row.model_id as string,
+    prompt: row.prompt as string,
+    responseText: row.response_text as string,
+    steps: JSON.parse(row.steps as string),
+    totalInputTokens: row.total_input_tokens as number,
+    totalOutputTokens: row.total_output_tokens as number,
+    durationMs: row.duration_ms as number,
+    finishReason: row.finish_reason as string,
+    createdAt: row.created_at as string,
+  };
+}
+
+export function listTraces(limit = 50): TraceSummary[] {
+  const db = getDb();
+  const rows = db.prepare('SELECT id, chat_id, model_id, prompt, steps, total_input_tokens, total_output_tokens, duration_ms, created_at FROM traces ORDER BY created_at DESC LIMIT ?').all(limit) as Array<Record<string, unknown>>;
+  return rows.map(row => {
+    const steps = JSON.parse(row.steps as string) as TraceStep[];
+    const toolCount = steps.reduce((sum, s) => sum + s.toolCalls.length, 0);
+    return {
+      id: row.id as string,
+      chatId: (row.chat_id as string) ?? null,
+      modelId: row.model_id as string,
+      prompt: (row.prompt as string).slice(0, 100),
+      toolCount,
+      stepCount: steps.length,
+      totalInputTokens: row.total_input_tokens as number,
+      totalOutputTokens: row.total_output_tokens as number,
+      durationMs: row.duration_ms as number,
+      createdAt: row.created_at as string,
+    };
+  });
 }

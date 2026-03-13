@@ -35,7 +35,7 @@ export function ChatView({ chat }: ChatViewProps) {
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [activeTools, setActiveTools] = useState<Array<{ id: string; name: string; done: boolean }>>([]);
+  const [isWorking, setIsWorking] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
@@ -67,14 +67,18 @@ export function ChatView({ chat }: ChatViewProps) {
   }, []);
 
   const persistMessages = useCallback(
-    (msgs: StoredMessage[], id?: string) => {
+    async (msgs: StoredMessage[], id?: string) => {
       const chatId = id ?? chatIdRef.current;
       if (!chatId) return;
-      fetch(`/api/chats/${chatId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: msgs }),
-      });
+      try {
+        await fetch(`/api/chats/${chatId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: msgs }),
+        });
+      } catch (err) {
+        console.error("Failed to persist messages:", err);
+      }
     },
     []
   );
@@ -88,7 +92,7 @@ export function ChatView({ chat }: ChatViewProps) {
     ): Promise<{ content: string; citations: string[] }> => {
       setStreamingContent("");
       setIsStreaming(true);
-      setActiveTools([]);
+      setIsWorking(false);
 
       const citations: string[] = [];
 
@@ -103,7 +107,7 @@ export function ChatView({ chat }: ChatViewProps) {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: uiMessages, ...(model ? { model } : {}) }),
+          body: JSON.stringify({ messages: uiMessages, ...(model ? { model } : {}), chatId: chatIdRef.current }),
           signal,
         });
 
@@ -130,23 +134,15 @@ export function ChatView({ chat }: ChatViewProps) {
             try {
               const parsed = JSON.parse(payload);
 
-              // Track tool calls with individual spinners
+              // Track tool activity with a single working indicator
               if (parsed.type === "tool-input-start") {
-                setActiveTools((prev) => [
-                  ...prev,
-                  { id: parsed.toolCallId, name: parsed.toolName ?? "unknown", done: false },
-                ]);
+                setIsWorking(true);
                 content = "";
                 setStreamingContent("");
               }
 
-              // Tool output — mark done and extract citations
+              // Extract citations from tool output
               if (parsed.type === "tool-output-available") {
-                setActiveTools((prev) =>
-                  prev.map((t) =>
-                    t.id === parsed.toolCallId ? { ...t, done: true } : t
-                  )
-                );
                 if (parsed.output?.citations?.length) {
                   citations.push(...parsed.output.citations);
                 }
@@ -167,7 +163,7 @@ export function ChatView({ chat }: ChatViewProps) {
       } finally {
         setIsStreaming(false);
         setStreamingContent("");
-        setActiveTools([]);
+        setIsWorking(false);
       }
     },
     []
@@ -205,6 +201,9 @@ export function ChatView({ chat }: ChatViewProps) {
         return;
       }
     }
+
+    // Persist user message immediately so it survives page reloads
+    await persistMessages(updatedMessages, chatId!);
 
     abortRef.current = new AbortController();
 
@@ -478,8 +477,7 @@ export function ChatView({ chat }: ChatViewProps) {
                     role="assistant"
                     content={streamingContent}
                     isStreaming
-                    isResearching={activeTools.some((t) => !t.done) && !streamingContent}
-                    activeTools={activeTools}
+                    isResearching={isWorking && !streamingContent}
                     instruments={instruments}
                   />
                 )}
