@@ -104,18 +104,12 @@ function CollapsibleJSON({ label, data, defaultOpen = false }: { label: string; 
 function TraceContent({ trace }: { trace: Trace }) {
   return (
     <>
-      {/* User prompt */}
-      <div style={{
-        borderLeft: "3px solid var(--foreground)",
-        paddingLeft: 16, marginBottom: 32,
-      }}>
-        <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 8 }}>
-          Prompt
-        </div>
+      {/* User prompt (collapsed by default) */}
+      <CollapsibleSection label="Prompt" defaultOpen={false}>
         <div style={{ fontSize: 15, color: "var(--foreground)", whiteSpace: "pre-wrap" }}>
           {trace.prompt}
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* Agent response (collapsed by default) */}
       <CollapsibleSection label="Response" defaultOpen={false}>
