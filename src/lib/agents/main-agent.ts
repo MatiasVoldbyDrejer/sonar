@@ -132,8 +132,9 @@ You have access to the following tools:
 
 ${toolDescriptions}
 
-You do NOT have the portfolio pre-loaded. Use get_holdings to see current positions
-when the user asks about their portfolio, holdings, or specific instruments they own.
+You do NOT have the portfolio pre-loaded. Use get_portfolio_value for total portfolio
+value and recent gains. Use get_holdings to see individual positions, allocation, or
+specific instruments they own.
 
 <when_to_use_research>
 ALWAYS use research when:
@@ -188,6 +189,6 @@ IMPORTANT: Follow these rules strictly.
     model: getModel(modelId),
     system,
     tools,
-    stopWhen: stepCountIs(4),
+    stopWhen: stepCountIs(8),
   };
 }
