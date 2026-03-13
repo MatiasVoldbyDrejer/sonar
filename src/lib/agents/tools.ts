@@ -286,7 +286,7 @@ export const portfolioValueTool = tool({
 
     // Get chart data for period value changes
     const url = new URL('http://localhost:3100/api/portfolio/chart');
-    url.searchParams.set('period', '1m');
+    url.searchParams.set('period', '3m');
     const request = new (await import('next/server')).NextRequest(url);
     const { GET } = await import('@/app/api/portfolio/chart/route');
     const response = await GET(request);
