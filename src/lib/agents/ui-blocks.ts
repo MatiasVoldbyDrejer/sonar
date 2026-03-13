@@ -38,6 +38,7 @@ const blocks: UIBlockDef[] = [
       'MUST emit one <recurring-task-block> per task when list_recurring_tasks returns results.',
       'MUST emit a <recurring-task-block> after toggle_recurring_task returns, with the updated active state.',
       'NEVER answer or execute the task\'s prompt when creating a recurring task — the prompt is input for the scheduler, not a question to answer now.',
+      'MUST choose the model based on task complexity when calling create_recurring_task: gemini-flash for simple summaries, status updates, price checks; sonnet for analysis requiring reasoning, comparisons, recommendations; opus for complex multi-step research, deep portfolio reviews.',
     ],
   },
 ];
