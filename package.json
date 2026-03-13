@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3100 --webpack",
+    "dev": "next dev --port 3100 --webpack & ngrok http 3100 --domain=unludicrous-slavishly-dodie.ngrok-free.dev > /dev/null 2>&1 & wait",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
