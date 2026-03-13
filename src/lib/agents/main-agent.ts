@@ -5,6 +5,7 @@ import {
   quoteTool, portfolioAnalysisTool, chartTool, transactionsTool,
   searchInstrumentTool, holdingsTool, portfolioPerformanceTool,
   fxRateTool, fundHoldingsTool, saveMemoryTool, deleteMemoryTool,
+  createRecurringTaskTool, toggleRecurringTaskTool, listRecurringTasksTool,
 } from './tools';
 import { investorDescription } from '@/lib/prompts';
 import { getAgentMemories } from '@/lib/db';
@@ -52,6 +53,9 @@ export function getMainAgentConfig(profile: InvestorProfile = {}) {
     get_fund_holdings: fundHoldingsTool,
     save_memory: saveMemoryTool,
     delete_memory: deleteMemoryTool,
+    create_recurring_task: createRecurringTaskTool,
+    toggle_recurring_task: toggleRecurringTaskTool,
+    list_recurring_tasks: listRecurringTasksTool,
   };
 
   const toolDescriptions = Object.entries(tools)

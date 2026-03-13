@@ -1,20 +1,26 @@
 import { getDb } from '@/lib/db';
 import type { Chat, ChatSummary } from '@/types';
 
-export function createChat(title?: string): Chat {
+export function createChat(
+  title?: string,
+  source: 'user' | 'recurring_task' | 'whatsapp' = 'user',
+  recurringTaskId?: number
+): Chat {
   const db = getDb();
   const id = `chat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const date = new Date().toISOString().split('T')[0];
 
   db.prepare(
-    'INSERT INTO chats (id, date, title, messages) VALUES (?, ?, ?, ?)'
-  ).run(id, date, title || 'New Thread', '[]');
+    'INSERT INTO chats (id, date, title, messages, source, recurring_task_id) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(id, date, title || 'New Thread', '[]', source, recurringTaskId ?? null);
 
   return {
     id,
     date,
     title: title || 'New Thread',
     messages: [],
+    source,
+    recurringTaskId: recurringTaskId ?? null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -26,11 +32,25 @@ export function getChatById(id: string): Chat | null {
   return row ? mapChatRow(row) : null;
 }
 
-export function listChats(): ChatSummary[] {
+export function findTodayWhatsAppChat(): Chat | null {
   const db = getDb();
-  const rows = db.prepare(
-    'SELECT id, date, title, messages, created_at, updated_at FROM chats ORDER BY date DESC'
-  ).all() as Record<string, unknown>[];
+  const today = new Date().toISOString().split('T')[0];
+  const row = db.prepare(
+    "SELECT * FROM chats WHERE source = 'whatsapp' AND date = ? ORDER BY created_at DESC LIMIT 1"
+  ).get(today) as Record<string, unknown> | undefined;
+  return row ? mapChatRow(row) : null;
+}
+
+export function listChats(source?: 'user' | 'recurring_task' | 'whatsapp'): ChatSummary[] {
+  const db = getDb();
+  let sql = 'SELECT id, date, title, messages, source, recurring_task_id, created_at, updated_at FROM chats';
+  const params: string[] = [];
+  if (source) {
+    sql += ' WHERE source = ?';
+    params.push(source);
+  }
+  sql += ' ORDER BY date DESC';
+  const rows = db.prepare(sql).all(...params) as Record<string, unknown>[];
 
   return rows.map(row => {
     let preview: string | undefined;
@@ -47,6 +67,8 @@ export function listChats(): ChatSummary[] {
       date: row.date as string,
       title: row.title as string,
       preview,
+      source: (row.source as 'user' | 'recurring_task' | 'whatsapp') || 'user',
+      recurringTaskId: (row.recurring_task_id as number) ?? null,
       createdAt: row.created_at as string,
       updatedAt: row.updated_at as string,
     };
@@ -60,12 +82,21 @@ export function saveChatMessages(id: string, messages: unknown[]): void {
   ).run(JSON.stringify(messages), id);
 }
 
+export function updateChatTitle(id: string, title: string): void {
+  const db = getDb();
+  db.prepare(
+    "UPDATE chats SET title = ?, updated_at = datetime('now') WHERE id = ?"
+  ).run(title, id);
+}
+
 function mapChatRow(row: Record<string, unknown>): Chat {
   return {
     id: row.id as string,
     date: row.date as string,
     title: row.title as string,
     messages: JSON.parse(row.messages as string),
+    source: (row.source as 'user' | 'recurring_task' | 'whatsapp') || 'user',
+    recurringTaskId: (row.recurring_task_id as number) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };

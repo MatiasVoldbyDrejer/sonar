@@ -95,6 +95,8 @@ export interface Chat {
   date: string;
   title: string;
   messages: ChatMessage[];
+  source: 'user' | 'recurring_task' | 'whatsapp';
+  recurringTaskId: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -104,6 +106,21 @@ export interface ChatSummary {
   date: string;
   title: string;
   preview?: string;
+  source: 'user' | 'recurring_task' | 'whatsapp';
+  recurringTaskId: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RecurringTask {
+  id: number;
+  name: string;
+  prompt: string;
+  cronExpression: string;
+  timezone: string;
+  active: boolean;
+  lastRunAt: string | null;
+  lastChatId: string | null;
   createdAt: string;
   updatedAt: string;
 }

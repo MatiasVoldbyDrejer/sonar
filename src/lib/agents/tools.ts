@@ -2,9 +2,11 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { getQuoteWithStats, getChart, searchSymbol, getFundHoldings } from '@/lib/market-data';
 import { getCurrentRate } from '@/lib/fx';
-import { getDb, getAgentMemories, upsertAgentMemory, deleteAgentMemory } from '@/lib/db';
+import { getDb, getSetting, getAgentMemories, upsertAgentMemory, deleteAgentMemory } from '@/lib/db';
 import { loadPositions } from '@/lib/load-positions';
 import { GET as getDeepDiveData } from '@/app/api/deepdive/route';
+import { createRecurringTask, listRecurringTasks, updateRecurringTask } from '@/lib/recurring-tasks-db';
+import { scheduleTask, unscheduleTask, rescheduleTask } from '@/lib/scheduler';
 import type { Position } from '@/types';
 
 export const quoteTool = tool({
@@ -334,6 +336,75 @@ export const fundHoldingsTool = tool({
       sectorWeightings: [...data.sectorWeightings.entries()].map(([sector, weight]) => ({
         sector,
         weight: Math.round(weight * 10000) / 100,
+      })),
+    };
+  },
+});
+
+export const createRecurringTaskTool = tool({
+  description:
+    'Create a recurring scheduled task that runs automatically on a cron schedule. Use when the investor asks for periodic updates, daily briefings, or any repeated analysis.',
+  inputSchema: z.object({
+    name: z.string().describe('Short name for the task (e.g. "Daily Portfolio Update")'),
+    prompt: z.string().describe('The prompt to execute on each run — write it as if the investor is asking you directly'),
+    schedule: z.string().describe('Cron expression (e.g. "0 10 * * *" for daily at 10am, "0 9 * * 1" for Mondays at 9am)'),
+  }),
+  execute: async ({ name, prompt, schedule }) => {
+    const cron = await import('node-cron');
+    if (!cron.validate(schedule)) {
+      return { error: `Invalid cron expression: "${schedule}"` };
+    }
+
+    const timezone = getSetting('timezone') || 'Europe/Copenhagen';
+    const task = createRecurringTask(name, prompt, schedule, timezone);
+    scheduleTask(task);
+
+    return {
+      created: true,
+      id: task.id,
+      name: task.name,
+      schedule: task.cronExpression,
+      timezone: task.timezone,
+    };
+  },
+});
+
+export const toggleRecurringTaskTool = tool({
+  description:
+    'Pause or resume a recurring task. Use list_recurring_tasks first to find the task ID.',
+  inputSchema: z.object({
+    task_id: z.number().describe('ID of the recurring task'),
+    active: z.boolean().describe('true to activate/resume, false to pause'),
+  }),
+  execute: async ({ task_id, active }) => {
+    const updated = updateRecurringTask(task_id, { active });
+    if (!updated) return { error: `Task ${task_id} not found` };
+
+    if (active) {
+      rescheduleTask(updated);
+    } else {
+      unscheduleTask(task_id);
+    }
+
+    return { id: task_id, active: updated.active, name: updated.name };
+  },
+});
+
+export const listRecurringTasksTool = tool({
+  description:
+    'List all recurring tasks with their schedules and status. Use to find task IDs for toggling or managing tasks.',
+  inputSchema: z.object({}),
+  execute: async () => {
+    const tasks = listRecurringTasks();
+    return {
+      tasks: tasks.map(t => ({
+        id: t.id,
+        name: t.name,
+        prompt: t.prompt,
+        schedule: t.cronExpression,
+        timezone: t.timezone,
+        active: t.active,
+        lastRunAt: t.lastRunAt,
       })),
     };
   },

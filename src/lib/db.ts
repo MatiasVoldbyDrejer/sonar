@@ -82,6 +82,19 @@ function initSchema(db: Database.Database) {
     );
     INSERT OR IGNORE INTO settings (key, value) VALUES ('reporting_currency', 'DKK');
 
+    CREATE TABLE IF NOT EXISTS recurring_tasks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      prompt TEXT NOT NULL,
+      cron_expression TEXT NOT NULL,
+      timezone TEXT NOT NULL DEFAULT 'Europe/Copenhagen',
+      active INTEGER NOT NULL DEFAULT 1,
+      last_run_at TEXT,
+      last_chat_id TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS agent_memories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT UNIQUE NOT NULL,
@@ -235,6 +248,12 @@ function initSchema(db: Database.Database) {
   const accCols = db.prepare("PRAGMA table_info(accounts)").all() as Array<{ name: string }>;
   const accColNames = new Set(accCols.map(c => c.name));
   if (!accColNames.has('wallet_address')) db.exec('ALTER TABLE accounts ADD COLUMN wallet_address TEXT');
+
+  // Migrate: add source and recurring_task_id columns to chats
+  const chatCols = db.prepare("PRAGMA table_info(chats)").all() as Array<{ name: string }>;
+  const chatColNames = new Set(chatCols.map(c => c.name));
+  if (!chatColNames.has('source')) db.exec("ALTER TABLE chats ADD COLUMN source TEXT NOT NULL DEFAULT 'user'");
+  if (!chatColNames.has('recurring_task_id')) db.exec('ALTER TABLE chats ADD COLUMN recurring_task_id INTEGER');
 
   // Seed default accounts if empty
   const count = db.prepare('SELECT COUNT(*) as count FROM accounts').get() as { count: number };

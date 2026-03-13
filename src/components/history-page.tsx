@@ -44,7 +44,7 @@ export function HistoryPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    fetch("/api/chats")
+    fetch("/api/chats?source=user")
       .then((res) => res.json())
       .then((data) => setChats(data))
       .catch(() => {});
