@@ -35,7 +35,7 @@ export function ChatView({ chat }: ChatViewProps) {
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [isResearching, setIsResearching] = useState(false);
+  const [activeTools, setActiveTools] = useState<Array<{ id: string; name: string; done: boolean }>>([]);
   const [inputValue, setInputValue] = useState("");
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
@@ -88,7 +88,7 @@ export function ChatView({ chat }: ChatViewProps) {
     ): Promise<{ content: string; citations: string[] }> => {
       setStreamingContent("");
       setIsStreaming(true);
-      setIsResearching(false);
+      setActiveTools([]);
 
       const citations: string[] = [];
 
@@ -114,12 +114,15 @@ export function ChatView({ chat }: ChatViewProps) {
 
         const decoder = new TextDecoder();
         let content = "";
+        let lineBuffer = "";
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           const chunk = decoder.decode(value);
-          for (const line of chunk.split("\n")) {
+          const lines = (lineBuffer + chunk).split("\n");
+          lineBuffer = lines.pop() ?? "";
+          for (const line of lines) {
             const trimmed = line.trim();
             if (!trimmed.startsWith("data:")) continue;
             const payload = trimmed.slice(5).trim();
@@ -127,19 +130,23 @@ export function ChatView({ chat }: ChatViewProps) {
             try {
               const parsed = JSON.parse(payload);
 
-              // Track tool calls for "Researching..." indicator
-              if (
-                parsed.type === "tool-input-start" ||
-                parsed.type === "tool-input-available"
-              ) {
-                setIsResearching(true);
+              // Track tool calls with individual spinners
+              if (parsed.type === "tool-input-start") {
+                setActiveTools((prev) => [
+                  ...prev,
+                  { id: parsed.toolCallId, name: parsed.toolName ?? "unknown", done: false },
+                ]);
                 content = "";
                 setStreamingContent("");
               }
 
-              // Tool output — extract citations
+              // Tool output — mark done and extract citations
               if (parsed.type === "tool-output-available") {
-                setIsResearching(false);
+                setActiveTools((prev) =>
+                  prev.map((t) =>
+                    t.id === parsed.toolCallId ? { ...t, done: true } : t
+                  )
+                );
                 if (parsed.output?.citations?.length) {
                   citations.push(...parsed.output.citations);
                 }
@@ -160,7 +167,7 @@ export function ChatView({ chat }: ChatViewProps) {
       } finally {
         setIsStreaming(false);
         setStreamingContent("");
-        setIsResearching(false);
+        setActiveTools([]);
       }
     },
     []
@@ -471,7 +478,8 @@ export function ChatView({ chat }: ChatViewProps) {
                     role="assistant"
                     content={streamingContent}
                     isStreaming
-                    isResearching={isResearching && !streamingContent}
+                    isResearching={activeTools.some((t) => !t.done) && !streamingContent}
+                    activeTools={activeTools}
                     instruments={instruments}
                   />
                 )}
