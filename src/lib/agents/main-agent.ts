@@ -52,7 +52,9 @@ function formatMemories(memories: AgentMemory[]): string {
   return sections.join('\n\n');
 }
 
-export function getMainAgentConfig(profile: InvestorProfile = {}, modelId?: ModelId) {
+export type AgentSource = 'web' | 'telegram' | 'task';
+
+export function getMainAgentConfig(profile: InvestorProfile = {}, modelId?: ModelId, source: AgentSource = 'web') {
   const investor = investorDescription(profile);
 
   const tools = {
@@ -82,7 +84,7 @@ export function getMainAgentConfig(profile: InvestorProfile = {}, modelId?: Mode
     .filter(name => name !== 'research')
     .join(', ');
 
-  const uiBlocksSection = buildUIBlocksPrompt();
+  const uiBlocksSection = source === 'web' ? buildUIBlocksPrompt() : '';
 
   const memories = getAgentMemories();
   const memorySection = memories.length > 0 ? `

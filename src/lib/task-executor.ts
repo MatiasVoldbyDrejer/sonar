@@ -33,7 +33,7 @@ export async function executeRecurringTask(taskId: number): Promise<void> {
 
   const profile = getInvestorProfile();
   const modelId = (task.model as ModelId) || 'gemini-flash';
-  const config = getMainAgentConfig(profile, modelId);
+  const config = getMainAgentConfig(profile, modelId, 'task');
 
   const result = await generateText({
     ...config,

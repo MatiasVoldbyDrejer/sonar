@@ -128,7 +128,7 @@ async function handleUpdate(update: Record<string, unknown>) {
 
   // Run agent
   const profile = getInvestorProfile();
-  const config = getMainAgentConfig(profile, 'gemini-flash');
+  const config = getMainAgentConfig(profile, 'gemini-flash', 'telegram');
   const startTime = Date.now();
 
   const result = await generateText({
