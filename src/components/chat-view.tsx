@@ -92,7 +92,7 @@ export function ChatView({ chat }: ChatViewProps) {
     ): Promise<{ content: string; citations: string[] }> => {
       setStreamingContent("");
       setIsStreaming(true);
-      setIsWorking(false);
+      setIsWorking(true);
 
       const citations: string[] = [];
 
@@ -119,6 +119,11 @@ export function ChatView({ chat }: ChatViewProps) {
         const decoder = new TextDecoder();
         let content = "";
         let lineBuffer = "";
+        let sawTool = false;
+        let toolsDone = false;
+        let finalTextStarted = false;
+        let pureTextMode = false;
+        let pureTextTimer: ReturnType<typeof setTimeout> | null = null;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -134,8 +139,13 @@ export function ChatView({ chat }: ChatViewProps) {
             try {
               const parsed = JSON.parse(payload);
 
-              // Track tool activity with a single working indicator
+              // Track tool activity
               if (parsed.type === "tool-input-start") {
+                sawTool = true;
+                toolsDone = false;
+                finalTextStarted = false;
+                pureTextMode = false;
+                if (pureTextTimer) { clearTimeout(pureTextTimer); pureTextTimer = null; }
                 setIsWorking(true);
                 content = "";
                 setStreamingContent("");
@@ -143,15 +153,41 @@ export function ChatView({ chat }: ChatViewProps) {
 
               // Extract citations from tool output
               if (parsed.type === "tool-output-available") {
+                toolsDone = true;
                 if (parsed.output?.citations?.length) {
                   citations.push(...parsed.output.citations);
                 }
               }
 
-              // Text content streaming
+              // Text content streaming — suppress intermediate reasoning between tool calls
               if (parsed.type === "text-delta" && parsed.delta) {
-                content += parsed.delta;
-                setStreamingContent(content);
+                if (pureTextMode) {
+                  // Confirmed pure text response — stream directly
+                  content += parsed.delta;
+                  setStreamingContent(content);
+                } else if (!sawTool) {
+                  // No tools seen yet — buffer and start a timer.
+                  // If no tool-input-start arrives soon, switch to pure text mode.
+                  content += parsed.delta;
+                  if (!pureTextTimer) {
+                    pureTextTimer = setTimeout(() => {
+                      pureTextMode = true;
+                      setIsWorking(false);
+                      setStreamingContent(content);
+                    }, 150);
+                  }
+                } else if (finalTextStarted) {
+                  // Already confirmed this is the final response after tools
+                  content += parsed.delta;
+                  setStreamingContent(content);
+                } else if (toolsDone) {
+                  // First text after tool output — show it (cleared if more tools come)
+                  finalTextStarted = true;
+                  content += parsed.delta;
+                  setIsWorking(false);
+                  setStreamingContent(content);
+                }
+                // else: text between tool-input-start and tool-output — suppress
               }
             } catch {
               // skip unparseable lines
@@ -159,6 +195,7 @@ export function ChatView({ chat }: ChatViewProps) {
           }
         }
 
+        if (pureTextTimer) clearTimeout(pureTextTimer);
         return { content, citations };
       } finally {
         setIsStreaming(false);
@@ -185,6 +222,7 @@ export function ChatView({ chat }: ChatViewProps) {
 
     // Create chat on first message if this is a new thread
     let chatId = chatIdRef.current;
+    let isNewChat = false;
     if (!chatId) {
       try {
         const res = await fetch("/api/chats", {
@@ -195,7 +233,7 @@ export function ChatView({ chat }: ChatViewProps) {
         const newChat = await res.json();
         chatId = newChat.id;
         chatIdRef.current = chatId;
-        window.history.replaceState(null, "", `/chat/${chatId}`);
+        isNewChat = true;
       } catch {
         console.error("Failed to create chat");
         return;
@@ -226,10 +264,19 @@ export function ChatView({ chat }: ChatViewProps) {
 
       const finalMessages = [...updatedMessages, assistantMsg];
       setMessages(finalMessages);
-      persistMessages(finalMessages, chatId!);
+      await persistMessages(finalMessages, chatId!);
+
+      // Update URL only after messages are persisted, so /chat/[id] won't load stale data
+      if (isNewChat) {
+        window.history.replaceState(null, "", `/chat/${chatId}`);
+      }
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         console.error("Chat error:", err);
+      }
+      // Still update URL if chat was created, so refresh works
+      if (isNewChat) {
+        window.history.replaceState(null, "", `/chat/${chatId}`);
       }
     }
   };
