@@ -153,8 +153,8 @@ async function handleUpdate(update: Record<string, unknown>) {
       steps: result.steps.map((step: any, i: number) => ({
         index: i,
         text: step.text ?? '',
-        toolCalls: (step.toolCalls ?? []).map((tc: any) => ({ toolName: tc.toolName, args: tc.args })),
-        toolResults: (step.toolResults ?? []).map((tr: any) => ({ toolName: tr.toolName, args: tr.args, result: tr.result })),
+        toolCalls: (step.toolCalls ?? []).map((tc: any) => ({ toolName: tc.toolName, args: tc.input })),
+        toolResults: (step.toolResults ?? []).map((tr: any) => ({ toolName: tr.toolName, args: tr.input, result: tr.output })),
         inputTokens: step.usage?.inputTokens ?? 0,
         outputTokens: step.usage?.outputTokens ?? 0,
         modelId: step.response?.modelId ?? 'gemini-flash',

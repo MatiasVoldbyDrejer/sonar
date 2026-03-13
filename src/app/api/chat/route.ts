@@ -31,8 +31,8 @@ export async function POST(req: Request) {
           steps: steps.map((step, i) => ({
             index: i,
             text: step.text,
-            toolCalls: step.toolCalls.map(tc => ({ toolName: tc.toolName, args: (tc as any).args })),
-            toolResults: step.toolResults.map(tr => ({ toolName: tr.toolName, args: (tr as any).args, result: (tr as any).result })),
+            toolCalls: step.toolCalls.map(tc => ({ toolName: tc.toolName, args: (tc as any).input })),
+            toolResults: step.toolResults.map(tr => ({ toolName: tr.toolName, args: (tr as any).input, result: (tr as any).output })),
             inputTokens: step.usage?.inputTokens ?? 0,
             outputTokens: step.usage?.outputTokens ?? 0,
             modelId: step.response?.modelId ?? model ?? 'unknown',
