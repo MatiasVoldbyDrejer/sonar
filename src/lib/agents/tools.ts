@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { getQuoteWithStats, getChart, searchSymbol, getFundHoldings } from '@/lib/market-data';
 import { getCurrentRate } from '@/lib/fx';
 import { getDb, getSetting, getAgentMemories, upsertAgentMemory, deleteAgentMemory } from '@/lib/db';
-import { loadPositions } from '@/lib/load-positions';
 import { GET as getDeepDiveData } from '@/app/api/deepdive/route';
 import { createRecurringTask, listRecurringTasks, updateRecurringTask } from '@/lib/recurring-tasks-db';
 import { scheduleTask, unscheduleTask, rescheduleTask } from '@/lib/scheduler';
@@ -178,7 +177,10 @@ async function getCachedPositions(): Promise<Position[]> {
   if (cachedPositions && Date.now() - positionsCacheTime < POSITIONS_TTL) {
     return cachedPositions;
   }
-  cachedPositions = await loadPositions();
+  // Use the same route as the dashboard to get positions with live quotes
+  const { GET } = await import('@/app/api/positions/route');
+  const response = await GET();
+  cachedPositions = await response.json() as Position[];
   positionsCacheTime = Date.now();
   return cachedPositions;
 }
