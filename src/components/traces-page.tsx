@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Loader2, ListTree, Search, X, Maximize2, ChevronRight, ChevronDown } from "lucide-react";
 import { MarkdownContent } from "@/components/markdown-content";
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import type { Trace, TraceSummary } from "@/lib/db";
 
 function formatRelativeTime(dateStr: string): string {
@@ -490,20 +491,42 @@ export function TracesPage() {
                         {formatRelativeTime(trace.createdAt)}
                       </td>
                       <td style={{ padding: "10px 12px" }}>
-                        <span style={{
-                          display: "inline-block", padding: "2px 8px", borderRadius: 9999,
-                          fontSize: 11, fontWeight: 500, color: modelBadgeColor(trace.modelId),
-                          border: `1px solid ${modelBadgeColor(trace.modelId)}33`,
-                          background: `${modelBadgeColor(trace.modelId)}15`,
-                        }}>
-                          {modelLabel(trace.modelId)}
-                        </span>
+                        <HoverCard openDelay={200} closeDelay={100}>
+                          <HoverCardTrigger asChild>
+                            <span style={{
+                              display: "inline-block", padding: "2px 8px", borderRadius: 9999,
+                              fontSize: 11, fontWeight: 500, color: modelBadgeColor(trace.modelId),
+                              border: `1px solid ${modelBadgeColor(trace.modelId)}33`,
+                              background: `${modelBadgeColor(trace.modelId)}15`,
+                              maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                              cursor: "default",
+                            }}>
+                              {modelLabel(trace.modelId)}
+                            </span>
+                          </HoverCardTrigger>
+                          <HoverCardContent style={{ width: "auto", padding: "8px 12px" }}>
+                            <span style={{ fontSize: 12, fontFamily: "monospace", color: "var(--foreground)" }}>
+                              {trace.modelId}
+                            </span>
+                          </HoverCardContent>
+                        </HoverCard>
                       </td>
                       <td style={{
                         padding: "10px 12px", color: "var(--foreground)",
                         maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                       }}>
-                        {trace.prompt || "(empty)"}
+                        {trace.prompt ? (
+                          <HoverCard openDelay={300} closeDelay={100}>
+                            <HoverCardTrigger asChild>
+                              <span style={{ cursor: "default" }}>{trace.prompt}</span>
+                            </HoverCardTrigger>
+                            <HoverCardContent style={{ width: "auto", maxWidth: 400, padding: "8px 12px" }}>
+                              <span style={{ fontSize: 12, color: "var(--foreground)", whiteSpace: "pre-wrap" }}>
+                                {trace.prompt}
+                              </span>
+                            </HoverCardContent>
+                          </HoverCard>
+                        ) : "(empty)"}
                       </td>
                       <td style={{ padding: "10px 12px", color: "var(--muted-foreground)", textAlign: "center" }}>
                         {trace.stepCount}
