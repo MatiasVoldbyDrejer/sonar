@@ -268,19 +268,23 @@ export const portfolioPerformanceTool = tool({
 
 export const portfolioValueTool = tool({
   description:
-    'Get total portfolio value and recent gains (1d, 7d, 30d). Use this when the user asks "what\'s my portfolio worth?", total value, or how the portfolio is doing. Returns a single summary — no individual positions.',
+    'Get total portfolio value, cost basis, unrealized P/L, day change, and 1d/7d/30d value changes. Use this when the user asks "what\'s my portfolio worth?", total value, or how the portfolio is doing. Returns a single summary — no individual positions.',
   inputSchema: z.object({}),
   execute: async () => {
-    // Use live positions for current value (matches dashboard)
     const positions = await getCachedPositions();
-    const active = positions.filter(p => p.quantity > 0 && p.currentValue !== null);
-    const currentValue = active.reduce((sum, p) => sum + (p.currentValue ?? 0), 0);
+    const active = positions.filter((p: any) => p.quantity > 0 && p.currentValue !== null);
 
     if (active.length === 0) {
       return { error: 'No portfolio data available' };
     }
 
-    // Use chart data for historical comparisons
+    const currentValue = active.reduce((sum: number, p: any) => sum + (p.currentValue ?? 0), 0);
+    const totalCostBasis = active.reduce((sum: number, p: any) => sum + p.costBasis, 0);
+    const unrealizedPL = currentValue - totalCostBasis;
+    const unrealizedPLPercent = totalCostBasis > 0 ? (unrealizedPL / totalCostBasis) * 100 : 0;
+    const totalDayChange = active.reduce((sum: number, p: any) => sum + (p.dayChange ?? 0), 0);
+
+    // Get chart data for period value changes
     const url = new URL('http://localhost:3100/api/portfolio/chart');
     url.searchParams.set('period', '1m');
     const request = new (await import('next/server')).NextRequest(url);
@@ -299,7 +303,7 @@ export const portfolioValueTool = tool({
       return null;
     }
 
-    function computeGain(pastValue: number | null) {
+    function computeValueChange(pastValue: number | null) {
       if (pastValue == null) return null;
       return {
         absolute: Math.round((currentValue - pastValue) * 100) / 100,
@@ -307,11 +311,17 @@ export const portfolioValueTool = tool({
       };
     }
 
+    const r = (n: number) => Math.round(n * 100) / 100;
+
     return {
-      currentValue: Math.round(currentValue * 100) / 100,
-      gain1d: computeGain(valueNDaysAgo(1)),
-      gain7d: computeGain(valueNDaysAgo(7)),
-      gain30d: computeGain(valueNDaysAgo(30)),
+      currentValue: r(currentValue),
+      totalCostBasis: r(totalCostBasis),
+      unrealizedPL: r(unrealizedPL),
+      unrealizedPLPercent: r(unrealizedPLPercent),
+      dayChange: r(totalDayChange),
+      valueChange1d: computeValueChange(valueNDaysAgo(1)),
+      valueChange7d: computeValueChange(valueNDaysAgo(7)),
+      valueChange30d: computeValueChange(valueNDaysAgo(30)),
     };
   },
 });
