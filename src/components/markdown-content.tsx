@@ -3,6 +3,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { InstrumentBadge } from "@/components/instrument-badge";
+import { UIBlock, parseSonarUIBlock } from "@/components/ui-blocks";
 import type { Instrument } from "@/types";
 import type { Components } from "react-markdown";
 import type { ReactNode } from "react";
@@ -137,6 +138,18 @@ export function MarkdownContent({
           {children}
         </a>
       );
+    },
+    pre: ({ children, ...props }) => {
+      // Check if this pre contains a sonar-ui code block
+      if (children && typeof children === "object" && "props" in (children as any)) {
+        const codeProps = (children as any).props;
+        const className = codeProps?.className || "";
+        if (className === "language-sonar-ui") {
+          const block = parseSonarUIBlock(String(codeProps.children || "").trim());
+          if (block) return <UIBlock block={block} />;
+        }
+      }
+      return <pre {...props}>{children}</pre>;
     },
   };
 

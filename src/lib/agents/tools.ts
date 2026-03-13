@@ -363,8 +363,11 @@ export const createRecurringTaskTool = tool({
       created: true,
       id: task.id,
       name: task.name,
+      prompt,
       schedule: task.cronExpression,
       timezone: task.timezone,
+      active: true,
+      model: task.model || 'gemini-flash',
     };
   },
 });

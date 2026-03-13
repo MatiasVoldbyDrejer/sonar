@@ -133,6 +133,8 @@ export function ChatView({ chat }: ChatViewProps) {
                 parsed.type === "tool-input-available"
               ) {
                 setIsResearching(true);
+                content = "";
+                setStreamingContent("");
               }
 
               // Tool output — extract citations

@@ -9,6 +9,7 @@ import {
   createRecurringTaskTool, toggleRecurringTaskTool, listRecurringTasksTool,
 } from './tools';
 import { investorDescription } from '@/lib/prompts';
+import { buildUIBlocksPrompt } from './ui-blocks';
 import { getAgentMemories, getSetting } from '@/lib/db';
 import type { AgentMemory } from '@/lib/db';
 import type { InvestorProfile } from '@/types';
@@ -80,6 +81,8 @@ export function getMainAgentConfig(profile: InvestorProfile = {}, modelId?: Mode
     .filter(name => name !== 'research')
     .join(', ');
 
+  const uiBlocksSection = buildUIBlocksPrompt();
+
   const memories = getAgentMemories();
   const memorySection = memories.length > 0 ? `
 
@@ -120,6 +123,8 @@ Rules:
 - Save silently — do not announce that you are saving a memory unless asked
 - Use kebab-case names that describe the content (e.g. "prefers-bullet-points")
 </memory_guidelines>
+
+${uiBlocksSection}
 
 <capabilities>
 You have access to the following tools:
