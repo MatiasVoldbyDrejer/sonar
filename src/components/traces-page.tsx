@@ -45,6 +45,28 @@ function modelLabel(modelId: string): string {
   return modelId;
 }
 
+function CollapsibleSection({ label, defaultOpen = false, children }: { label: string; defaultOpen?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        style={{
+          display: "flex", alignItems: "center", gap: 6,
+          background: "transparent", border: "none", cursor: "pointer",
+          fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em",
+          color: "var(--muted-foreground)", padding: 0, marginBottom: open ? 8 : 0,
+        }}
+      >
+        {open ? <ChevronDown style={{ width: 12, height: 12 }} /> : <ChevronRight style={{ width: 12, height: 12 }} />}
+        {label}
+      </button>
+      {open && children}
+    </div>
+  );
+}
+
 function CollapsibleJSON({ label, data, defaultOpen = false }: { label: string; data: unknown; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   const json = JSON.stringify(data, null, 2) ?? "null";
@@ -95,15 +117,12 @@ function TraceContent({ trace }: { trace: Trace }) {
         </div>
       </div>
 
-      {/* Agent response */}
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 8 }}>
-          Response
-        </div>
+      {/* Agent response (collapsed by default) */}
+      <CollapsibleSection label="Response" defaultOpen={false}>
         <div style={{ fontSize: 14, color: "var(--foreground)" }}>
           <MarkdownContent content={trace.responseText} instruments={[]} />
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* Steps */}
       <div style={{ marginBottom: 32 }}>
