@@ -4,7 +4,7 @@ import { stepCountIs } from 'ai';
 import { researchTool } from './research-tool';
 import {
   quoteTool, portfolioAnalysisTool, chartTool, transactionsTool,
-  searchInstrumentTool, holdingsTool, portfolioPerformanceTool,
+  searchInstrumentTool, holdingsTool, portfolioPerformanceTool, portfolioValueTool,
   fxRateTool, fundHoldingsTool, saveMemoryTool, deleteMemoryTool,
   createRecurringTaskTool, toggleRecurringTaskTool, listRecurringTasksTool,
 } from './tools';
@@ -64,6 +64,7 @@ export function getMainAgentConfig(profile: InvestorProfile = {}, modelId?: Mode
     search_instrument: searchInstrumentTool,
     get_holdings: holdingsTool,
     get_portfolio_performance: portfolioPerformanceTool,
+    get_portfolio_value: portfolioValueTool,
     get_fx_rate: fxRateTool,
     get_fund_holdings: fundHoldingsTool,
     save_memory: saveMemoryTool,

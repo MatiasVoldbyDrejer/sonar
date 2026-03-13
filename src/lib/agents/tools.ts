@@ -264,6 +264,56 @@ export const portfolioPerformanceTool = tool({
   },
 });
 
+export const portfolioValueTool = tool({
+  description:
+    'Get the current portfolio value and gains over 1 day, 7 days, and 30 days.',
+  inputSchema: z.object({}),
+  execute: async () => {
+    // Use live positions for current value (matches dashboard)
+    const positions = await getCachedPositions();
+    const active = positions.filter(p => p.quantity > 0 && p.currentValue !== null);
+    const currentValue = active.reduce((sum, p) => sum + (p.currentValue ?? 0), 0);
+
+    if (active.length === 0) {
+      return { error: 'No portfolio data available' };
+    }
+
+    // Use chart data for historical comparisons
+    const url = new URL('http://localhost:3100/api/portfolio/chart');
+    url.searchParams.set('period', '1m');
+    const request = new (await import('next/server')).NextRequest(url);
+    const { GET } = await import('@/app/api/portfolio/chart/route');
+    const response = await GET(request);
+    const dataPoints = await response.json();
+
+    function valueNDaysAgo(days: number): number | null {
+      if (!dataPoints || dataPoints.length === 0) return null;
+      const target = new Date();
+      target.setDate(target.getDate() - days);
+      const targetStr = target.toISOString().split('T')[0];
+      for (let i = dataPoints.length - 1; i >= 0; i--) {
+        if (dataPoints[i].date <= targetStr) return dataPoints[i].close;
+      }
+      return null;
+    }
+
+    function computeGain(pastValue: number | null) {
+      if (pastValue == null) return null;
+      return {
+        absolute: Math.round((currentValue - pastValue) * 100) / 100,
+        percent: Math.round(((currentValue - pastValue) / pastValue) * 10000) / 100,
+      };
+    }
+
+    return {
+      currentValue: Math.round(currentValue * 100) / 100,
+      gain1d: computeGain(valueNDaysAgo(1)),
+      gain7d: computeGain(valueNDaysAgo(7)),
+      gain30d: computeGain(valueNDaysAgo(30)),
+    };
+  },
+});
+
 export const fxRateTool = tool({
   description:
     'Get the current exchange rate between two currencies.',
@@ -348,15 +398,18 @@ export const createRecurringTaskTool = tool({
     name: z.string().describe('Short name for the task (e.g. "Daily Portfolio Update")'),
     prompt: z.string().describe('The prompt to execute on each run — write it as if the investor is asking you directly'),
     schedule: z.string().describe('Cron expression (e.g. "0 10 * * *" for daily at 10am, "0 9 * * 1" for Mondays at 9am)'),
+    model: z.enum(['sonnet', 'opus', 'gemini-flash', 'gemini-flash-lite'])
+      .optional()
+      .describe('Model to use for task execution. Choose based on task complexity: gemini-flash for simple summaries/updates, sonnet for analysis requiring reasoning, opus for complex multi-step research.'),
   }),
-  execute: async ({ name, prompt, schedule }) => {
+  execute: async ({ name, prompt, schedule, model }) => {
     const cron = await import('node-cron');
     if (!cron.validate(schedule)) {
       return { error: `Invalid cron expression: "${schedule}"` };
     }
 
     const timezone = getSetting('timezone') || 'Europe/Copenhagen';
-    const task = createRecurringTask(name, prompt, schedule, timezone);
+    const task = createRecurringTask(name, prompt, schedule, timezone, model || 'gemini-flash');
     scheduleTask(task);
 
     return {
