@@ -2,12 +2,12 @@ import { generateText, stepCountIs } from 'ai';
 import { getMainAgentConfig } from '@/lib/agents/main-agent';
 import { getInvestorProfile } from '@/lib/profile';
 import { getRecurringTaskById, markTaskRun } from '@/lib/recurring-tasks-db';
-import { isWhatsAppEnabled, getUserPhone, sendLongMessage, sendTemplate } from '@/lib/whatsapp';
+import { isTelegramEnabled, sendLongMessage } from '@/lib/telegram';
 
-const WHATSAPP_FORMAT_INSTRUCTION = `
+const TELEGRAM_FORMAT_INSTRUCTION = `
 
 <output_format>
-You are responding via WhatsApp. Format your response for WhatsApp's text rendering:
+You are responding via Telegram. Format your response for Telegram's text rendering:
 - Use *single asterisks* for bold (NOT **double**)
 - Use _underscores_ for italic
 - Use \`backticks\` for monospace
@@ -24,8 +24,8 @@ export async function executeRecurringTask(taskId: number): Promise<void> {
   const task = getRecurringTaskById(taskId);
   if (!task) throw new Error(`Recurring task ${taskId} not found`);
 
-  if (!isWhatsAppEnabled() || !getUserPhone()) {
-    console.warn(`[recurring-task] WhatsApp not configured, skipping "${task.name}"`);
+  if (!isTelegramEnabled()) {
+    console.warn(`[recurring-task] Telegram not configured, skipping "${task.name}"`);
     markTaskRun(taskId);
     return;
   }
@@ -35,26 +35,17 @@ export async function executeRecurringTask(taskId: number): Promise<void> {
 
   const result = await generateText({
     ...config,
-    system: config.system + WHATSAPP_FORMAT_INSTRUCTION,
+    system: config.system + TELEGRAM_FORMAT_INSTRUCTION,
     stopWhen: stepCountIs(10),
     messages: [{ role: 'user', content: task.prompt }],
   });
 
   markTaskRun(taskId);
 
-  console.log(`[recurring-task] Executed "${task.name}" (id=${taskId}), sending to WhatsApp`);
-
-  try {
-    await sendTemplate('hello_world', 'en_US');
-  } catch (err) {
-    console.warn(`[recurring-task] Template send failed (continuing with message):`, err);
-  }
-
-  // Brief pause to let the template open the 24h messaging window
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  console.log(`[recurring-task] Executed "${task.name}" (id=${taskId}), sending to Telegram`);
 
   const messageText = `*${task.name}*\n\n${result.text}`;
-  console.log(`[recurring-task] Sending WhatsApp message (${messageText.length} chars)`);
+  console.log(`[recurring-task] Sending Telegram message (${messageText.length} chars)`);
   await sendLongMessage(messageText);
-  console.log(`[recurring-task] WhatsApp message sent successfully`);
+  console.log(`[recurring-task] Telegram message sent successfully`);
 }

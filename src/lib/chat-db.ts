@@ -3,7 +3,7 @@ import type { Chat, ChatSummary } from '@/types';
 
 export function createChat(
   title?: string,
-  source: 'user' | 'recurring_task' | 'whatsapp' = 'user',
+  source: 'user' | 'recurring_task' | 'telegram' = 'user',
   recurringTaskId?: number
 ): Chat {
   const db = getDb();
@@ -32,16 +32,16 @@ export function getChatById(id: string): Chat | null {
   return row ? mapChatRow(row) : null;
 }
 
-export function findTodayWhatsAppChat(): Chat | null {
+export function findTodayTelegramChat(): Chat | null {
   const db = getDb();
   const today = new Date().toISOString().split('T')[0];
   const row = db.prepare(
-    "SELECT * FROM chats WHERE source = 'whatsapp' AND date = ? ORDER BY created_at DESC LIMIT 1"
+    "SELECT * FROM chats WHERE source = 'telegram' AND date = ? ORDER BY created_at DESC LIMIT 1"
   ).get(today) as Record<string, unknown> | undefined;
   return row ? mapChatRow(row) : null;
 }
 
-export function listChats(source?: 'user' | 'recurring_task' | 'whatsapp'): ChatSummary[] {
+export function listChats(source?: 'user' | 'recurring_task' | 'telegram'): ChatSummary[] {
   const db = getDb();
   let sql = 'SELECT id, date, title, messages, source, recurring_task_id, created_at, updated_at FROM chats';
   const params: string[] = [];
@@ -67,7 +67,7 @@ export function listChats(source?: 'user' | 'recurring_task' | 'whatsapp'): Chat
       date: row.date as string,
       title: row.title as string,
       preview,
-      source: (row.source as 'user' | 'recurring_task' | 'whatsapp') || 'user',
+      source: (row.source as 'user' | 'recurring_task' | 'telegram') || 'user',
       recurringTaskId: (row.recurring_task_id as number) ?? null,
       createdAt: row.created_at as string,
       updatedAt: row.updated_at as string,
@@ -95,7 +95,7 @@ function mapChatRow(row: Record<string, unknown>): Chat {
     date: row.date as string,
     title: row.title as string,
     messages: JSON.parse(row.messages as string),
-    source: (row.source as 'user' | 'recurring_task' | 'whatsapp') || 'user',
+    source: (row.source as 'user' | 'recurring_task' | 'telegram') || 'user',
     recurringTaskId: (row.recurring_task_id as number) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,

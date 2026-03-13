@@ -103,7 +103,15 @@ function initSchema(db: Database.Database) {
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS telegram_link_codes (
+      code TEXT PRIMARY KEY,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
+
+  // Migrate: whatsapp → telegram in chats source
+  db.exec("UPDATE chats SET source = 'telegram' WHERE source = 'whatsapp'");
 
   // Migrate: add classification columns to instruments
   const cols = db.prepare("PRAGMA table_info(instruments)").all() as Array<{ name: string }>;

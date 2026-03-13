@@ -95,7 +95,7 @@ export interface Chat {
   date: string;
   title: string;
   messages: ChatMessage[];
-  source: 'user' | 'recurring_task' | 'whatsapp';
+  source: 'user' | 'recurring_task' | 'telegram';
   recurringTaskId: number | null;
   createdAt: string;
   updatedAt: string;
@@ -106,7 +106,7 @@ export interface ChatSummary {
   date: string;
   title: string;
   preview?: string;
-  source: 'user' | 'recurring_task' | 'whatsapp';
+  source: 'user' | 'recurring_task' | 'telegram';
   recurringTaskId: number | null;
   createdAt: string;
   updatedAt: string;

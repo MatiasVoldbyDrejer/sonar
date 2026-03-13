@@ -84,8 +84,9 @@ export function SettingsPage() {
           <TabsTrigger value="accounts">Accounts</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="general" style={{ marginTop: 16 }}>
+        <TabsContent value="general" style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 16 }}>
           <GeneralTab />
+          <TelegramSection />
         </TabsContent>
 
         <TabsContent value="instruments" style={{ marginTop: 16 }}>
@@ -175,6 +176,117 @@ function GeneralTab() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Telegram Section ────────────────────────────────────────────────
+
+function TelegramSection() {
+  const [status, setStatus] = useState<{
+    connected: boolean;
+    botConfigured: boolean;
+    chatId?: string;
+  } | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [polling, setPolling] = useState(false);
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings/telegram");
+      const data = await res.json();
+      setStatus(data);
+      return data;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStatus();
+  }, [fetchStatus]);
+
+  useEffect(() => {
+    if (!polling) return;
+    const interval = setInterval(async () => {
+      const data = await fetchStatus();
+      if (data?.connected) {
+        setPolling(false);
+        setConnecting(false);
+        toast.success("Telegram connected");
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [polling, fetchStatus]);
+
+  const handleConnect = async () => {
+    setConnecting(true);
+    try {
+      const res = await fetch("/api/settings/telegram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "Failed to generate link");
+        setConnecting(false);
+        return;
+      }
+      const data = await res.json();
+      window.open(data.url, "_blank");
+      setPolling(true);
+    } catch {
+      toast.error("Failed to connect");
+      setConnecting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      await fetch("/api/settings/telegram", { method: "DELETE" });
+      setStatus({ connected: false, botConfigured: true });
+      toast.success("Telegram disconnected");
+    } catch {
+      toast.error("Failed to disconnect");
+    }
+  };
+
+  if (!status) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Telegram</CardTitle>
+      </CardHeader>
+      <CardContent style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {!status.botConfigured ? (
+          <p style={{ fontSize: "0.875rem", color: "var(--muted-foreground)" }}>
+            Telegram bot not configured. Set the <code style={{ fontSize: "0.8rem", padding: "2px 4px", background: "var(--muted)", borderRadius: 4 }}>TELEGRAM_BOT_TOKEN</code> environment variable to enable.
+          </p>
+        ) : status.connected ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e" }} />
+              <span style={{ fontSize: "0.875rem" }}>Connected</span>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleDisconnect}>
+              Disconnect
+            </Button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <p style={{ fontSize: "0.875rem", color: "var(--muted-foreground)" }}>
+              Connect Telegram to receive recurring task results and chat with your portfolio agent on mobile.
+            </p>
+            <div>
+              <Button size="sm" onClick={handleConnect} disabled={connecting}>
+                {connecting ? "Waiting for connection..." : "Connect to Telegram"}
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>
