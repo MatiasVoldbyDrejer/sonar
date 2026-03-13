@@ -257,6 +257,12 @@ function initSchema(db: Database.Database) {
   const accColNames = new Set(accCols.map(c => c.name));
   if (!accColNames.has('wallet_address')) db.exec('ALTER TABLE accounts ADD COLUMN wallet_address TEXT');
 
+  // Migrate: add model column to recurring_tasks
+  const taskCols = db.prepare("PRAGMA table_info(recurring_tasks)").all() as Array<{ name: string }>;
+  if (!new Set(taskCols.map(c => c.name)).has('model')) {
+    db.exec("ALTER TABLE recurring_tasks ADD COLUMN model TEXT DEFAULT 'gemini-flash'");
+  }
+
   // Migrate: add source and recurring_task_id columns to chats
   const chatCols = db.prepare("PRAGMA table_info(chats)").all() as Array<{ name: string }>;
   const chatColNames = new Set(chatCols.map(c => c.name));

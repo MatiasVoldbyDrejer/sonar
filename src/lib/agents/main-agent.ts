@@ -1,4 +1,5 @@
 import { anthropic } from '@ai-sdk/anthropic';
+import { google } from '@ai-sdk/google';
 import { stepCountIs } from 'ai';
 import { researchTool } from './research-tool';
 import {
@@ -8,9 +9,22 @@ import {
   createRecurringTaskTool, toggleRecurringTaskTool, listRecurringTasksTool,
 } from './tools';
 import { investorDescription } from '@/lib/prompts';
-import { getAgentMemories } from '@/lib/db';
+import { getAgentMemories, getSetting } from '@/lib/db';
 import type { AgentMemory } from '@/lib/db';
 import type { InvestorProfile } from '@/types';
+
+export type ModelId = 'sonnet' | 'opus' | 'gemini-flash' | 'gemini-flash-lite';
+
+export function getModel(id?: ModelId) {
+  const choice = id ?? (getSetting('ai_model') as ModelId) ?? 'sonnet';
+  switch (choice) {
+    case 'opus': return anthropic('claude-opus-4-6');
+    case 'gemini-flash': return google('gemini-3-flash-preview');
+    case 'gemini-flash-lite': return google('gemini-3.1-flash-lite-preview');
+    case 'sonnet':
+    default: return anthropic('claude-sonnet-4-6');
+  }
+}
 
 function formatMemories(memories: AgentMemory[]): string {
   if (memories.length === 0) return '';
@@ -37,7 +51,7 @@ function formatMemories(memories: AgentMemory[]): string {
   return sections.join('\n\n');
 }
 
-export function getMainAgentConfig(profile: InvestorProfile = {}) {
+export function getMainAgentConfig(profile: InvestorProfile = {}, modelId?: ModelId) {
   const investor = investorDescription(profile);
 
   const tools = {
@@ -165,7 +179,7 @@ IMPORTANT: Follow these rules strictly.
 </rules>`;
 
   return {
-    model: anthropic('claude-sonnet-4-6'),
+    model: getModel(modelId),
     system,
     tools,
     stopWhen: stepCountIs(4),

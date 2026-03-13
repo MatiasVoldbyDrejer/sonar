@@ -11,6 +11,7 @@ function mapRow(row: Record<string, unknown>): RecurringTask {
     active: Boolean(row.active),
     lastRunAt: (row.last_run_at as string) ?? null,
     lastChatId: (row.last_chat_id as string) ?? null,
+    model: (row.model as string) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -20,12 +21,13 @@ export function createRecurringTask(
   name: string,
   prompt: string,
   cronExpression: string,
-  timezone: string = 'Europe/Copenhagen'
+  timezone: string = 'Europe/Copenhagen',
+  model: string = 'gemini-flash'
 ): RecurringTask {
   const db = getDb();
   const result = db.prepare(
-    'INSERT INTO recurring_tasks (name, prompt, cron_expression, timezone) VALUES (?, ?, ?, ?)'
-  ).run(name, prompt, cronExpression, timezone);
+    'INSERT INTO recurring_tasks (name, prompt, cron_expression, timezone, model) VALUES (?, ?, ?, ?, ?)'
+  ).run(name, prompt, cronExpression, timezone, model);
 
   return getRecurringTaskById(result.lastInsertRowid as number)!;
 }
@@ -44,7 +46,7 @@ export function listRecurringTasks(): RecurringTask[] {
 
 export function updateRecurringTask(
   id: number,
-  updates: Partial<Pick<RecurringTask, 'name' | 'prompt' | 'cronExpression' | 'timezone' | 'active'>>
+  updates: Partial<Pick<RecurringTask, 'name' | 'prompt' | 'cronExpression' | 'timezone' | 'active' | 'model'>>
 ): RecurringTask | null {
   const db = getDb();
   const fields: string[] = [];
@@ -55,6 +57,7 @@ export function updateRecurringTask(
   if (updates.cronExpression !== undefined) { fields.push('cron_expression = ?'); values.push(updates.cronExpression); }
   if (updates.timezone !== undefined) { fields.push('timezone = ?'); values.push(updates.timezone); }
   if (updates.active !== undefined) { fields.push('active = ?'); values.push(updates.active ? 1 : 0); }
+  if (updates.model !== undefined) { fields.push('model = ?'); values.push(updates.model); }
 
   if (fields.length === 0) return getRecurringTaskById(id);
 

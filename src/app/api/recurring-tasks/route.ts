@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
   }
 
   const timezone = body.timezone || getSetting('timezone') || 'Europe/Copenhagen';
-  const task = createRecurringTask(name, prompt, cronExpression, timezone);
+  const model = body.model || 'gemini-flash';
+  const task = createRecurringTask(name, prompt, cronExpression, timezone, model);
   scheduleTask(task);
 
   return NextResponse.json(task, { status: 201 });

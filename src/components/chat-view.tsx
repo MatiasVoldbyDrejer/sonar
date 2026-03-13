@@ -4,8 +4,15 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ChatMessage } from "@/components/chat-message";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, ChevronDown } from "lucide-react";
 import type { Chat, Instrument } from "@/types";
+
+const MODEL_OPTIONS = [
+  { value: "sonnet", label: "Sonnet" },
+  { value: "opus", label: "Opus" },
+  { value: "gemini-flash", label: "Gemini Flash" },
+  { value: "gemini-flash-lite", label: "Flash Lite" },
+];
 
 interface StoredMessage {
   id: string;
@@ -30,9 +37,21 @@ export function ChatView({ chat }: ChatViewProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isResearching, setIsResearching] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  const [selectedModel, setSelectedModel] = useState<string | null>(null);
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Load default model from settings on mount (only for new chats)
+  useEffect(() => {
+    if (isNewThread) {
+      fetch("/api/settings/model")
+        .then((r) => r.json())
+        .then((data) => setSelectedModel(data.model ?? "sonnet"))
+        .catch(() => setSelectedModel("sonnet"));
+    }
+  }, [isNewThread]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -64,7 +83,8 @@ export function ChatView({ chat }: ChatViewProps) {
     async (
       apiMessages: StoredMessage[],
       chatId: string,
-      signal?: AbortSignal
+      signal?: AbortSignal,
+      model?: string | null
     ): Promise<{ content: string; citations: string[] }> => {
       setStreamingContent("");
       setIsStreaming(true);
@@ -83,7 +103,7 @@ export function ChatView({ chat }: ChatViewProps) {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: uiMessages }),
+          body: JSON.stringify({ messages: uiMessages, ...(model ? { model } : {}) }),
           signal,
         });
 
@@ -183,7 +203,8 @@ export function ChatView({ chat }: ChatViewProps) {
       const result = await streamResponse(
         updatedMessages,
         chatId!,
-        abortRef.current.signal
+        abortRef.current.signal,
+        selectedModel
       );
 
       const assistantMsg: StoredMessage = {
@@ -261,10 +282,104 @@ export function ChatView({ chat }: ChatViewProps) {
           style={{
             display: "flex",
             alignItems: "center",
-            justifyContent: "flex-end",
+            justifyContent: "space-between",
             marginTop: 8,
           }}
         >
+          <div style={{ position: "relative" }}>
+            {showCentered && selectedModel && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setModelMenuOpen((v) => !v)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: 13,
+                    color: "var(--muted-foreground)",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: "4px 8px",
+                    borderRadius: "var(--radius-md)",
+                    transition: "color 150ms",
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.color = "var(--foreground)";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.color = "var(--muted-foreground)";
+                  }}
+                >
+                  {MODEL_OPTIONS.find((m) => m.value === selectedModel)?.label ?? selectedModel}
+                  <ChevronDown style={{ width: 14, height: 14 }} />
+                </button>
+                {modelMenuOpen && (
+                  <>
+                    <div
+                      style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                      onClick={() => setModelMenuOpen(false)}
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: "calc(100% + 4px)",
+                        left: 0,
+                        background: "var(--color-card)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "var(--radius-md)",
+                        padding: 4,
+                        zIndex: 50,
+                        minWidth: 160,
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      }}
+                    >
+                      {MODEL_OPTIONS.map((m) => (
+                        <button
+                          key={m.value}
+                          type="button"
+                          onClick={() => {
+                            setSelectedModel(m.value);
+                            setModelMenuOpen(false);
+                          }}
+                          style={{
+                            display: "block",
+                            width: "100%",
+                            textAlign: "left",
+                            padding: "8px 12px",
+                            fontSize: 13,
+                            border: "none",
+                            borderRadius: "var(--radius-sm)",
+                            cursor: "pointer",
+                            color:
+                              selectedModel === m.value
+                                ? "var(--foreground)"
+                                : "var(--muted-foreground)",
+                            background:
+                              selectedModel === m.value
+                                ? "rgba(255,255,255,0.06)"
+                                : "transparent",
+                            fontWeight: selectedModel === m.value ? 500 : 400,
+                          }}
+                          onMouseOver={(e) => {
+                            if (selectedModel !== m.value)
+                              e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                          }}
+                          onMouseOut={(e) => {
+                            if (selectedModel !== m.value)
+                              e.currentTarget.style.background = "transparent";
+                          }}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
           <Button
             type="submit"
             size="icon"

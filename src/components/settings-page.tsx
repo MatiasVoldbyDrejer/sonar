@@ -86,6 +86,7 @@ export function SettingsPage() {
 
         <TabsContent value="general" style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 16 }}>
           <GeneralTab />
+          <ModelTab />
           <TelegramSection />
         </TabsContent>
 
@@ -172,6 +173,77 @@ function GeneralTab() {
                 {SUPPORTED_CURRENCIES.map((c) => (
                   <SelectItem key={c} value={c}>
                     {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Model Tab ────────────────────────────────────────────────────────
+
+const MODEL_OPTIONS = [
+  { value: "sonnet", label: "Claude Sonnet" },
+  { value: "opus", label: "Claude Opus" },
+  { value: "gemini-flash", label: "Gemini 3 Flash" },
+  { value: "gemini-flash-lite", label: "Gemini 3.1 Flash Lite" },
+];
+
+function ModelTab() {
+  const [model, setModel] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/settings/model")
+      .then((r) => r.json())
+      .then((data) => setModel(data.model ?? "sonnet"))
+      .catch(() => setModel("sonnet"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleChange = async (value: string) => {
+    setModel(value);
+    try {
+      const res = await fetch("/api/settings/model", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: value }),
+      });
+      if (res.ok) {
+        toast.success(`AI model set to ${MODEL_OPTIONS.find((m) => m.value === value)?.label}`);
+      } else {
+        toast.error("Failed to update model");
+      }
+    } catch {
+      toast.error("Failed to update model");
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>AI Model</CardTitle>
+      </CardHeader>
+      <CardContent style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <p style={{ fontSize: "0.875rem", color: "var(--muted-foreground)" }}>
+          Model used for the chat agent.
+        </p>
+        {loading ? (
+          <p style={{ color: "var(--muted-foreground)" }}>Loading...</p>
+        ) : (
+          <div style={{ maxWidth: 200 }}>
+            <Select value={model} onValueChange={handleChange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MODEL_OPTIONS.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
                   </SelectItem>
                 ))}
               </SelectContent>

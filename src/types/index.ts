@@ -121,6 +121,7 @@ export interface RecurringTask {
   active: boolean;
   lastRunAt: string | null;
   lastChatId: string | null;
+  model: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -214,10 +214,18 @@ export function RecurringTasksPage() {
   );
 }
 
+const MODEL_OPTIONS = [
+  { value: "sonnet", label: "Claude Sonnet" },
+  { value: "opus", label: "Claude Opus" },
+  { value: "gemini-flash", label: "Gemini 3 Flash" },
+  { value: "gemini-flash-lite", label: "Gemini 3.1 Flash Lite" },
+];
+
 function CreateTaskDialog({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
   const [cronExpression, setCronExpression] = useState("0 10 * * *");
+  const [model, setModel] = useState("gemini-flash");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -229,7 +237,7 @@ function CreateTaskDialog({ onClose, onCreated }: { onClose: () => void; onCreat
     const res = await fetch("/api/recurring-tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, prompt, cronExpression }),
+      body: JSON.stringify({ name, prompt, cronExpression, model }),
     });
 
     if (!res.ok) {
@@ -344,6 +352,25 @@ function CreateTaskDialog({ onClose, onCreated }: { onClose: () => void; onCreat
           </div>
         </div>
 
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "var(--foreground)", marginBottom: 6 }}>
+            Model
+          </label>
+          <select
+            value={model}
+            onChange={e => setModel(e.target.value)}
+            style={{
+              width: "100%", padding: "8px 12px", fontSize: 14, borderRadius: "var(--radius-md)",
+              border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)",
+              outline: "none", boxSizing: "border-box",
+            }}
+          >
+            {MODEL_OPTIONS.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+        </div>
+
         {error && (
           <div style={{ fontSize: 13, color: "var(--destructive)", marginBottom: 12 }}>{error}</div>
         )}
@@ -381,6 +408,7 @@ function EditTaskDialog({ task, onClose, onSaved }: { task: RecurringTask; onClo
   const [name, setName] = useState(task.name);
   const [prompt, setPrompt] = useState(task.prompt);
   const [cronExpression, setCronExpression] = useState(task.cronExpression);
+  const [model, setModel] = useState(task.model || "gemini-flash");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -392,7 +420,7 @@ function EditTaskDialog({ task, onClose, onSaved }: { task: RecurringTask; onClo
     const res = await fetch(`/api/recurring-tasks/${task.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, prompt, cronExpression }),
+      body: JSON.stringify({ name, prompt, cronExpression, model }),
     });
 
     if (!res.ok) {
@@ -502,6 +530,25 @@ function EditTaskDialog({ task, onClose, onSaved }: { task: RecurringTask; onClo
           <div style={{ fontSize: 12, color: "var(--foreground-quieter-color)", marginTop: 4 }}>
             {cronToHuman(cronExpression)}
           </div>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "var(--foreground)", marginBottom: 6 }}>
+            Model
+          </label>
+          <select
+            value={model}
+            onChange={e => setModel(e.target.value)}
+            style={{
+              width: "100%", padding: "8px 12px", fontSize: 14, borderRadius: "var(--radius-md)",
+              border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)",
+              outline: "none", boxSizing: "border-box",
+            }}
+          >
+            {MODEL_OPTIONS.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
         </div>
 
         {error && (

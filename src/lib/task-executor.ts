@@ -1,5 +1,6 @@
 import { generateText, stepCountIs } from 'ai';
 import { getMainAgentConfig } from '@/lib/agents/main-agent';
+import type { ModelId } from '@/lib/agents/main-agent';
 import { getInvestorProfile } from '@/lib/profile';
 import { getRecurringTaskById, markTaskRun } from '@/lib/recurring-tasks-db';
 import { isTelegramEnabled, sendLongMessage } from '@/lib/telegram';
@@ -31,7 +32,8 @@ export async function executeRecurringTask(taskId: number): Promise<void> {
   }
 
   const profile = getInvestorProfile();
-  const config = getMainAgentConfig(profile);
+  const modelId = (task.model as ModelId) || 'gemini-flash';
+  const config = getMainAgentConfig(profile, modelId);
 
   const result = await generateText({
     ...config,
