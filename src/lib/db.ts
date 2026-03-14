@@ -502,9 +502,25 @@ export function getTraceById(id: string): Trace | null {
   };
 }
 
-export function listTraces(limit = 50): TraceSummary[] {
+export function listTraces(limit = 30, cursor?: string, search?: string): TraceSummary[] {
   const db = getDb();
-  const rows = db.prepare('SELECT id, chat_id, model_id, prompt, steps, total_input_tokens, total_output_tokens, duration_ms, created_at FROM traces ORDER BY created_at DESC LIMIT ?').all(limit) as Array<Record<string, unknown>>;
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
+  if (cursor) {
+    conditions.push('created_at < (SELECT created_at FROM traces WHERE id = ?)');
+    params.push(cursor);
+  }
+  if (search) {
+    conditions.push('(prompt LIKE ? OR model_id LIKE ?)');
+    const like = `%${search}%`;
+    params.push(like, like);
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  params.push(limit);
+
+  const rows = db.prepare(`SELECT id, chat_id, model_id, prompt, steps, total_input_tokens, total_output_tokens, duration_ms, created_at FROM traces ${where} ORDER BY created_at DESC LIMIT ?`).all(...params) as Array<Record<string, unknown>>;
   return rows.map(row => {
     const steps = JSON.parse(row.steps as string) as TraceStep[];
     const toolCount = steps.reduce((sum, s) => sum + s.toolCalls.length, 0);

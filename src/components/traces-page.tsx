@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, ListTree, Search, X, Maximize2, ChevronRight, ChevronDown } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { MarkdownContent } from "@/components/markdown-content";
@@ -390,21 +391,60 @@ function StepDetail({ step }: { step: Trace["steps"][0] }) {
 export function TracesPage() {
   const [traces, setTraces] = useState<TraceSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const fetchTraces = useCallback(() => {
-    fetch("/api/traces")
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 250);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const fetchTraces = useCallback((cursor?: string, query?: string) => {
+    const params = new URLSearchParams();
+    if (cursor) params.set("cursor", cursor);
+    if (query) params.set("q", query);
+    const qs = params.toString();
+    const url = `/api/traces${qs ? `?${qs}` : ""}`;
+    if (cursor) setLoadingMore(true); else setLoading(true);
+    fetch(url)
       .then(r => r.json())
-      .then(data => { setTraces(data); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(data => {
+        if (cursor) {
+          setTraces(prev => [...prev, ...data.traces]);
+        } else {
+          setTraces(data.traces);
+        }
+        setHasMore(data.hasMore);
+        setLoading(false);
+        setLoadingMore(false);
+      })
+      .catch(() => { setLoading(false); setLoadingMore(false); });
   }, []);
 
-  useEffect(() => { fetchTraces(); }, [fetchTraces]);
+  // Fetch on mount and when search changes
+  useEffect(() => { fetchTraces(undefined, debouncedSearch || undefined); }, [fetchTraces, debouncedSearch]);
 
-  const filtered = search
-    ? traces.filter(t => t.prompt.toLowerCase().includes(search.toLowerCase()) || t.modelId.toLowerCase().includes(search.toLowerCase()))
-    : traces;
+  // Infinite scroll via IntersectionObserver
+  useEffect(() => {
+    if (!hasMore || loadingMore || loading) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && traces.length > 0) {
+          fetchTraces(traces[traces.length - 1].id, debouncedSearch || undefined);
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loading, traces, fetchTraces, debouncedSearch]);
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
@@ -454,7 +494,7 @@ export function TracesPage() {
           )}
 
           {/* Trace table */}
-          {!loading && filtered.length > 0 && (
+          {!loading && traces.length > 0 && (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
@@ -470,10 +510,15 @@ export function TracesPage() {
                     ))}
                   </tr>
                 </thead>
+                <AnimatePresence mode="popLayout">
                 <tbody>
-                  {filtered.map(trace => (
-                    <tr
+                  {traces.map((trace, i) => (
+                    <motion.tr
                       key={trace.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.15, delay: Math.min(i * 0.02, 0.3) }}
                       onClick={() => setSelectedId(trace.id)}
                       style={{
                         borderBottom: "1px solid var(--border)", cursor: "pointer",
@@ -535,17 +580,26 @@ export function TracesPage() {
                       <td style={{ padding: "10px 12px", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>
                         {formatDuration(trace.durationMs)}
                       </td>
-                    </tr>
+                    </motion.tr>
                   ))}
                 </tbody>
+                </AnimatePresence>
               </table>
             </div>
           )}
 
-          {filtered.length === 0 && traces.length > 0 && (
+          {!loading && traces.length === 0 && search && (
             <p style={{ fontSize: 14, color: "var(--muted-foreground)", textAlign: "center", padding: "32px 0" }}>
               No traces matching &ldquo;{search}&rdquo;
             </p>
+          )}
+
+          {/* Infinite scroll sentinel */}
+          <div ref={sentinelRef} />
+          {loadingMore && (
+            <div style={{ textAlign: "center", padding: "20px 0", color: "var(--muted-foreground)" }}>
+              <Loader2 style={{ width: 16, height: 16, animation: "spin 1s linear infinite", display: "inline-block" }} />
+            </div>
           )}
         </div>
       </div>
