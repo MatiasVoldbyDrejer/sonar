@@ -393,6 +393,7 @@ export function ChatView({ chat }: ChatViewProps) {
                             textAlign: "left",
                             padding: "8px 12px",
                             fontSize: 14,
+                            marginBottom: 2,
                             border: "none",
                             borderRadius: "var(--radius-lg)",
                             cursor: "pointer",
