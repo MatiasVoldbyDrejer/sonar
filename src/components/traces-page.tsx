@@ -418,7 +418,7 @@ export function TracesPage() {
 
       {/* Content */}
       <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <div style={{ width: "100%", maxWidth: 720, padding: "20px 24px" }}>
+        <div style={{ width: "100%", maxWidth: 800, padding: "20px 24px" }}>
           {/* Search */}
           <div style={{ position: "relative", marginBottom: 20 }}>
             <Search
@@ -498,7 +498,7 @@ export function TracesPage() {
                               fontSize: 11, fontWeight: 500, color: modelBadgeColor(trace.modelId),
                               border: `1px solid ${modelBadgeColor(trace.modelId)}33`,
                               background: `${modelBadgeColor(trace.modelId)}15`,
-                              maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                               cursor: "default",
                             }}>
                               {modelLabel(trace.modelId)}
