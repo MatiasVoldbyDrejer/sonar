@@ -283,7 +283,7 @@ export function ChatView({ chat }: ChatViewProps) {
     <form
       onSubmit={handleSubmit}
       style={{
-        maxWidth: 768,
+        maxWidth: 640,
         width: "100%",
         margin: "0 auto",
         pointerEvents: "auto",
@@ -292,8 +292,8 @@ export function ChatView({ chat }: ChatViewProps) {
       <div
         style={{
           borderRadius: 20,
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-          background: "rgba(255, 255, 255, 0.04)",
+          border: "1px solid var(--border)",
+          background: "var(--card)",
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
           boxShadow: "0 0 4px 2px rgba(0, 0, 0, 0.08)",
@@ -308,12 +308,12 @@ export function ChatView({ chat }: ChatViewProps) {
           placeholder="Ask anything..."
           style={{
             width: "100%",
-            minHeight: showCentered ? 80 : 28,
+            minHeight: showCentered ? 28 : 28,
             maxHeight: 200,
             resize: "none",
             background: "transparent",
             padding: 0,
-            fontSize: 15,
+            fontSize: 16,
             border: "none",
             color: "inherit",
             outline: "none",
@@ -340,12 +340,13 @@ export function ChatView({ chat }: ChatViewProps) {
                     display: "flex",
                     alignItems: "center",
                     gap: 4,
-                    fontSize: 13,
+                    fontSize: 14,
+                    fontWeight: 500,
                     color: "var(--muted-foreground)",
                     background: "transparent",
                     border: "none",
                     cursor: "pointer",
-                    padding: "4px 8px",
+                    padding: "4px 0px",
                     borderRadius: "var(--radius-md)",
                     transition: "color 150ms",
                   }}
@@ -368,15 +369,14 @@ export function ChatView({ chat }: ChatViewProps) {
                     <div
                       style={{
                         position: "absolute",
-                        bottom: "calc(100% + 4px)",
                         left: 0,
                         background: "var(--color-card)",
                         border: "1px solid var(--border)",
-                        borderRadius: "var(--radius-md)",
+                        borderRadius: "var(--radius-xl)",
                         padding: 4,
                         zIndex: 50,
                         minWidth: 160,
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
                       }}
                     >
                       {MODEL_OPTIONS.map((m) => (
@@ -392,9 +392,9 @@ export function ChatView({ chat }: ChatViewProps) {
                             width: "100%",
                             textAlign: "left",
                             padding: "8px 12px",
-                            fontSize: 13,
+                            fontSize: 14,
                             border: "none",
-                            borderRadius: "var(--radius-sm)",
+                            borderRadius: "var(--radius-lg)",
                             cursor: "pointer",
                             color:
                               selectedModel === m.value
@@ -402,13 +402,13 @@ export function ChatView({ chat }: ChatViewProps) {
                                 : "var(--muted-foreground)",
                             background:
                               selectedModel === m.value
-                                ? "rgba(255,255,255,0.06)"
+                                ? "var(--background-subtle-color)"
                                 : "transparent",
-                            fontWeight: selectedModel === m.value ? 500 : 400,
+                            fontWeight: 400,
                           }}
                           onMouseOver={(e) => {
                             if (selectedModel !== m.value)
-                              e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                              e.currentTarget.style.background = "var(--background-subtle-color)";
                           }}
                           onMouseOut={(e) => {
                             if (selectedModel !== m.value)
@@ -462,18 +462,23 @@ export function ChatView({ chat }: ChatViewProps) {
               padding: "0 16px",
             }}
           >
-            <motion.img
-              src="/logo.svg"
-              alt="Sonar"
-              style={{
-                height: 40,
-                marginBottom: 32,
-                color: "var(--muted-foreground)",
-              }}
-              exit={{ opacity: 0, scale: 1.1, y: -20 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            />
-            {inputForm}
+            <div style={{ position: "relative", maxWidth: 640, width: "100%" }}>
+              <motion.img
+                src="/logo.svg"
+                alt="Sonar"
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  bottom: "calc(100% + 24px)",
+                  height: 22,
+                  color: "var(--muted-foreground)",
+                }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              />
+              {inputForm}
+            </div>
           </motion.div>
         ) : (
           <motion.div
