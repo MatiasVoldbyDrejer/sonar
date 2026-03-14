@@ -81,7 +81,7 @@ const linkStyle: React.CSSProperties = {
 
 const headingStyle: React.CSSProperties = {
   padding: `0 ${PAD}px`,
-  marginBottom: 4,
+  marginBottom: 8,
   fontSize: 12,
   fontWeight: 500,
   color: "var(--foreground-quiet-color)",
