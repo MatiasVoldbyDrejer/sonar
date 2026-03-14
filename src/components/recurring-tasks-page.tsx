@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 
 import { Play, Pause, Trash2, Plus, Loader2, CalendarClock, Pencil, RotateCw } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import type { RecurringTask } from "@/types";
 
 function formatLastRun(dateStr: string | null): string {
@@ -64,11 +65,7 @@ export function RecurringTasksPage() {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
       {/* Header */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "8px 16px", borderBottom: "1px solid var(--border)", flexShrink: 0,
-      }}>
-        <span style={{ fontSize: 14, fontWeight: 500, color: "var(--foreground)" }}>Tasks</span>
+      <PageHeader title="Tasks">
         <button
           onClick={() => setShowCreate(true)}
           style={{
@@ -83,7 +80,7 @@ export function RecurringTasksPage() {
           <Plus style={{ width: 14, height: 14 }} />
           New Task
         </button>
-      </div>
+      </PageHeader>
 
       {/* Content */}
       <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column", alignItems: "center" }}>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Loader2, ListTree, Search, X, Maximize2, ChevronRight, ChevronDown } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { MarkdownContent } from "@/components/markdown-content";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import type { Trace, TraceSummary } from "@/lib/db";
@@ -408,13 +409,7 @@ export function TracesPage() {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
       {/* Header */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "8px 16px", height: 49, boxSizing: "border-box",
-        borderBottom: "1px solid var(--border)", flexShrink: 0,
-      }}>
-        <span style={{ fontSize: 14, fontWeight: 500, color: "var(--foreground)" }}>Traces</span>
-      </div>
+      <PageHeader title="Traces" />
 
       {/* Content */}
       <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column", alignItems: "center" }}>

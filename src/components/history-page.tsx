@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Plus, Search, Clock } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import type { ChatSummary } from "@/types";
 
 function formatRelativeTime(dateStr: string, timeStr?: string): string {
@@ -67,21 +68,7 @@ export function HistoryPage() {
       }}
     >
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "8px 16px",
-          height: 49,
-          boxSizing: "border-box",
-          borderBottom: "1px solid var(--border)",
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ fontSize: 14, fontWeight: 500, color: "var(--foreground)" }}>
-          History
-        </span>
+      <PageHeader title="History">
         <Link
           href="/chat"
           style={{
@@ -108,7 +95,7 @@ export function HistoryPage() {
           <Plus style={{ width: 14, height: 14 }} />
           New Thread
         </Link>
-      </div>
+      </PageHeader>
 
       {/* Content */}
       <div
