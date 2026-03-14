@@ -210,11 +210,11 @@ function TracePanel({ traceId, onClose }: { traceId: string; onClose: () => void
     return (
       <>
         <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 40 }}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", zIndex: 40 }}
           onClick={() => setFullscreen(false)}
         />
         <div style={{
-          position: "fixed", inset: 20, zIndex: 50,
+          position: "fixed", inset: 12, zIndex: 50,
           background: "var(--background)", borderRadius: "var(--radius-lg)",
           border: "1px solid var(--border)", overflowY: "auto",
         }}>
