@@ -470,8 +470,8 @@ export function ChatView({ chat }: ChatViewProps) {
                   position: "absolute",
                   left: "50%",
                   transform: "translateX(-50%)",
-                  bottom: "calc(100% + 24px)",
-                  height: 22,
+                  bottom: "calc(100% + 48px)",
+                  height: 32,
                   color: "var(--muted-foreground)",
                 }}
                 exit={{ opacity: 0, y: -10 }}
