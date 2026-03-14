@@ -15,7 +15,7 @@ import {
   sendMessage,
   getBotToken,
 } from '@/lib/telegram';
-import { getSetting, setSetting, createTrace } from '@/lib/db';
+import { getSetting, setSetting, createTraceFromResult } from '@/lib/db';
 import type { ChatMessage } from '@/types';
 
 const TELEGRAM_FORMAT_INSTRUCTION = `
@@ -143,27 +143,12 @@ async function handleUpdate(update: Record<string, unknown>) {
 
   // Log trace
   try {
-    const traceId = `trace_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    createTrace({
-      id: traceId,
+    createTraceFromResult({
       chatId: chatThread.id,
-      modelId: (result as any).response?.modelId ?? 'gemini-flash',
       prompt: text,
-      responseText: result.text,
-      steps: result.steps.map((step: any, i: number) => ({
-        index: i,
-        text: step.text ?? '',
-        toolCalls: (step.toolCalls ?? []).map((tc: any) => ({ toolName: tc.toolName, args: tc.input })),
-        toolResults: (step.toolResults ?? []).map((tr: any) => ({ toolName: tr.toolName, args: tr.input, result: tr.output })),
-        inputTokens: step.usage?.inputTokens ?? 0,
-        outputTokens: step.usage?.outputTokens ?? 0,
-        modelId: step.response?.modelId ?? 'gemini-flash',
-        finishReason: step.finishReason ?? 'unknown',
-      })),
-      totalInputTokens: result.steps.reduce((sum: number, s: any) => sum + (s.usage?.inputTokens ?? 0), 0),
-      totalOutputTokens: result.steps.reduce((sum: number, s: any) => sum + (s.usage?.outputTokens ?? 0), 0),
-      durationMs: Date.now() - startTime,
-      finishReason: result.finishReason ?? 'unknown',
+      result,
+      fallbackModelId: 'gemini-flash',
+      startTime,
     });
   } catch (e) {
     console.error('Failed to save telegram trace:', e);

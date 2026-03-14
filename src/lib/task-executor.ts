@@ -4,6 +4,7 @@ import type { ModelId } from '@/lib/agents/main-agent';
 import { getInvestorProfile } from '@/lib/profile';
 import { getRecurringTaskById, markTaskRun } from '@/lib/recurring-tasks-db';
 import { isTelegramEnabled, sendLongMessage } from '@/lib/telegram';
+import { createTraceFromResult } from '@/lib/db';
 
 const TELEGRAM_FORMAT_INSTRUCTION = `
 
@@ -35,6 +36,7 @@ export async function executeRecurringTask(taskId: number): Promise<void> {
   const modelId = (task.model as ModelId) || 'gemini-flash';
   const config = getMainAgentConfig(profile, modelId, 'task');
 
+  const startTime = Date.now();
   const result = await generateText({
     ...config,
     system: config.system + TELEGRAM_FORMAT_INSTRUCTION,
@@ -43,6 +45,18 @@ export async function executeRecurringTask(taskId: number): Promise<void> {
   });
 
   markTaskRun(taskId);
+
+  try {
+    createTraceFromResult({
+      chatId: null,
+      prompt: task.prompt,
+      result,
+      fallbackModelId: modelId,
+      startTime,
+    });
+  } catch (e) {
+    console.error('Failed to save recurring task trace:', e);
+  }
 
   console.log(`[recurring-task] Executed "${task.name}" (id=${taskId}), sending to Telegram`);
 

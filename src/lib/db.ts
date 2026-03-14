@@ -451,6 +451,38 @@ export function createTrace(data: {
   );
 }
 
+export function createTraceFromResult(opts: {
+  chatId: string | null;
+  prompt: string;
+  result: { text: string; steps: any[]; finishReason?: string; response?: { modelId?: string } };
+  fallbackModelId: string;
+  startTime: number;
+}): void {
+  const { chatId, prompt, result, fallbackModelId, startTime } = opts;
+  const traceId = `trace_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  createTrace({
+    id: traceId,
+    chatId,
+    modelId: result.response?.modelId ?? fallbackModelId,
+    prompt,
+    responseText: result.text,
+    steps: result.steps.map((step: any, i: number) => ({
+      index: i,
+      text: step.text ?? '',
+      toolCalls: (step.toolCalls ?? []).map((tc: any) => ({ toolName: tc.toolName, args: tc.input })),
+      toolResults: (step.toolResults ?? []).map((tr: any) => ({ toolName: tr.toolName, args: tr.input, result: tr.output })),
+      inputTokens: step.usage?.inputTokens ?? 0,
+      outputTokens: step.usage?.outputTokens ?? 0,
+      modelId: step.response?.modelId ?? fallbackModelId,
+      finishReason: step.finishReason ?? 'unknown',
+    })),
+    totalInputTokens: result.steps.reduce((sum: number, s: any) => sum + (s.usage?.inputTokens ?? 0), 0),
+    totalOutputTokens: result.steps.reduce((sum: number, s: any) => sum + (s.usage?.outputTokens ?? 0), 0),
+    durationMs: Date.now() - startTime,
+    finishReason: result.finishReason ?? 'unknown',
+  });
+}
+
 export function getTraceById(id: string): Trace | null {
   const db = getDb();
   const row = db.prepare('SELECT * FROM traces WHERE id = ?').get(id) as Record<string, unknown> | undefined;
