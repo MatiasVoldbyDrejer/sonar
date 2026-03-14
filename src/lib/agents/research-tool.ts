@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 export const researchTool = tool({
   description:
-    'Search for current financial news, market data, analyst opinions, and real-time information from trusted financial sources.',
+    'Search for current financial news, market data, analyst opinions, and real-time information from trusted financial sources. Supports broad multi-topic queries (e.g. news for several stocks in one call) — prefer fewer, wider queries over many narrow ones.',
   inputSchema: z.object({
     query: z.string().describe('The research query to search for'),
     recency: z
@@ -22,6 +22,7 @@ ALWAYS:
 - Return factual, sourced information with specific numbers and dates
 - Attribute claims to their sources
 - Focus precisely on the query asked — do not add tangential information
+- When a query mentions multiple instruments, cover EACH one with its own section
 - Include relevant data points: prices, percentages, dates, analyst names
 
 NEVER:
