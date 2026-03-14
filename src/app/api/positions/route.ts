@@ -3,6 +3,7 @@ import { getDb, mapInstrumentRow, mapTransactionRow, mapAccountRow, getSetting }
 import { aggregatePositions } from '@/lib/portfolio-engine';
 import { getBatchQuotes } from '@/lib/market-data';
 import { getBatchCurrentRates, getBatchHistoricalRates } from '@/lib/fx';
+import { apiError } from '@/lib/resilience';
 import type { Instrument } from '@/types';
 
 export async function GET() {
@@ -46,11 +47,19 @@ export async function GET() {
     .filter(i => i.hasQuoteSource && i.yahooSymbol)
     .map(i => i.yahooSymbol!);
 
-  const [quotes, currentRates, historicalRates] = await Promise.all([
-    getBatchQuotes(symbols),
-    getBatchCurrentRates([...currencies], reportingCurrency),
-    getBatchHistoricalRates(historicalPairs, reportingCurrency),
-  ]);
+  let quotes: Map<string, import('@/types').Quote>;
+  let currentRates: Map<string, number>;
+  let historicalRates: Map<string, number>;
+  try {
+    [quotes, currentRates, historicalRates] = await Promise.all([
+      getBatchQuotes(symbols),
+      getBatchCurrentRates([...currencies], reportingCurrency),
+      getBatchHistoricalRates(historicalPairs, reportingCurrency),
+    ]);
+  } catch (error) {
+    console.error('Failed to load market data:', error);
+    return apiError('Failed to load market data', 500);
+  }
 
   const currentPrices = new Map<string, number>();
   const quoteChanges = new Map<string, { change: number; changePercent: number }>();

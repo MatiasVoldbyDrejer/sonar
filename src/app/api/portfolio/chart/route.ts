@@ -2,15 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, mapInstrumentRow, mapTransactionRow, getSetting } from '@/lib/db';
 import { getChart } from '@/lib/market-data';
 import { getBatchHistoricalRates } from '@/lib/fx';
+import { LRUCache } from '@/lib/resilience';
 import type { ChartDataPoint } from '@/types';
 
-interface CacheEntry {
-  data: ChartDataPoint[];
-  timestamp: number;
-}
-
-const portfolioChartCache = new Map<string, CacheEntry>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const portfolioChartCache = new LRUCache<string, ChartDataPoint[]>(10, CACHE_TTL);
 
 function getStartDate(period: string): string {
   const now = new Date();
@@ -30,8 +26,8 @@ export async function GET(request: NextRequest) {
 
   // Check cache
   const cached = portfolioChartCache.get(period);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return NextResponse.json(cached.data);
+  if (cached) {
+    return NextResponse.json(cached);
   }
 
   try {
@@ -180,7 +176,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Cache result
-    portfolioChartCache.set(period, { data: result, timestamp: Date.now() });
+    portfolioChartCache.set(period, result);
 
     return NextResponse.json(result);
   } catch (error) {

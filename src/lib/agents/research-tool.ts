@@ -14,9 +14,10 @@ export const researchTool = tool({
       .describe('How recent the results should be. Defaults to week.'),
   }),
   execute: async ({ query, recency }) => {
-    const result = await generateText({
-      model: perplexity('sonar-pro'),
-      system: `You are a financial research assistant. Your ONLY job is to find and return accurate, current financial information from trusted sources.
+    try {
+      const result = await generateText({
+        model: perplexity('sonar-pro'),
+        system: `You are a financial research assistant. Your ONLY job is to find and return accurate, current financial information from trusted sources.
 
 ALWAYS:
 - Return factual, sourced information with specific numbers and dates
@@ -32,29 +33,32 @@ NEVER:
 - Include disclaimers
 
 Return findings as a concise, structured research brief.`,
-      prompt: query,
-      providerOptions: {
-        perplexity: {
-          search_domain_filter: [
-            'reuters.com',
-            'bloomberg.com',
-            'ft.com',
-            'wsj.com',
-            'cnbc.com',
-            'marketwatch.com',
-            'seekingalpha.com',
-            'finance.yahoo.com',
-            'morningstar.com',
-            'investing.com',
-          ],
-          search_recency_filter: recency ?? 'week',
+        prompt: query,
+        providerOptions: {
+          perplexity: {
+            search_domain_filter: [
+              'reuters.com',
+              'bloomberg.com',
+              'ft.com',
+              'wsj.com',
+              'cnbc.com',
+              'marketwatch.com',
+              'seekingalpha.com',
+              'finance.yahoo.com',
+              'morningstar.com',
+              'investing.com',
+            ],
+            search_recency_filter: recency ?? 'week',
+          },
         },
-      },
-    });
+      });
 
-    const citations: string[] =
-      (result.providerMetadata?.perplexity?.citations as string[]) ?? [];
+      const citations: string[] =
+        (result.providerMetadata?.perplexity?.citations as string[]) ?? [];
 
-    return { content: result.text, citations };
+      return { content: result.text, citations };
+    } catch {
+      return { content: 'Research unavailable.', citations: [] };
+    }
   },
 });

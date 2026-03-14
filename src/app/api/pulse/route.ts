@@ -5,6 +5,7 @@ import { queryPerplexity } from '@/lib/perplexity';
 import { pulsePrompt } from '@/lib/prompts';
 import { getInvestorProfile } from '@/lib/profile';
 import { parsePulseResponse } from '@/lib/pulse-parser';
+import { apiError } from '@/lib/resilience';
 import type { PulseResponse } from '@/types';
 
 const SIX_HOURS = 6 * 60 * 60 * 1000;
@@ -70,7 +71,14 @@ export async function POST() {
 
   const profile = getInvestorProfile();
   const prompt = pulsePrompt(active, profile);
-  const { content } = await queryPerplexity(prompt);
+
+  let content: string;
+  try {
+    ({ content } = await queryPerplexity(prompt));
+  } catch (error) {
+    console.error('Pulse generation failed:', error);
+    return apiError('Pulse generation failed', 500);
+  }
 
   const knownIsins = new Set(active.map(p => p.instrument.isin));
   const pulse = parsePulseResponse(content, knownIsins);

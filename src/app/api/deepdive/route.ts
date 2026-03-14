@@ -5,6 +5,7 @@ import { aggregatePositions } from '@/lib/portfolio-engine';
 import { getBatchQuotes, getAssetProfile, getFundHoldings } from '@/lib/market-data';
 import type { FundHoldings } from '@/lib/market-data';
 import { getBatchCurrentRates, getBatchHistoricalRates } from '@/lib/fx';
+import { apiError } from '@/lib/resilience';
 import type { Instrument, AllocationSlice, DeepDiveData, DiversificationScore } from '@/types';
 
 export async function GET() {
@@ -79,16 +80,29 @@ export async function GET() {
     .filter(i => i.hasQuoteSource && i.yahooSymbol)
     .map(i => i.yahooSymbol!);
 
-  const [quotes, currentRates, historicalRates, ...fundHoldingsResults] = await Promise.all([
-    getBatchQuotes(symbols),
-    getBatchCurrentRates([...currencies], reportingCurrency),
-    getBatchHistoricalRates(historicalPairs, reportingCurrency),
-    ...fundInstruments.map(async (inst) => ({
-      isin: inst.isin,
-      ticker: inst.ticker,
-      holdings: await getFundHoldings(inst.yahooSymbol!),
-    })),
-  ]);
+  let quotes: Awaited<ReturnType<typeof getBatchQuotes>>;
+  let currentRates: Awaited<ReturnType<typeof getBatchCurrentRates>>;
+  let historicalRates: Awaited<ReturnType<typeof getBatchHistoricalRates>>;
+  let fundHoldingsResults: Array<{ isin: string; ticker: string | null; holdings: FundHoldings | null }>;
+  try {
+    const results = await Promise.all([
+      getBatchQuotes(symbols),
+      getBatchCurrentRates([...currencies], reportingCurrency),
+      getBatchHistoricalRates(historicalPairs, reportingCurrency),
+      ...fundInstruments.map(async (inst) => ({
+        isin: inst.isin,
+        ticker: inst.ticker,
+        holdings: await getFundHoldings(inst.yahooSymbol!),
+      })),
+    ]);
+    quotes = results[0] as Awaited<ReturnType<typeof getBatchQuotes>>;
+    currentRates = results[1] as Awaited<ReturnType<typeof getBatchCurrentRates>>;
+    historicalRates = results[2] as Awaited<ReturnType<typeof getBatchHistoricalRates>>;
+    fundHoldingsResults = results.slice(3) as Array<{ isin: string; ticker: string | null; holdings: FundHoldings | null }>;
+  } catch (error) {
+    console.error('Failed to load market data:', error);
+    return apiError('Failed to load market data', 500);
+  }
 
   const fundHoldingsMap = new Map<string, { ticker: string | null; holdings: FundHoldings }>();
   for (const result of fundHoldingsResults) {

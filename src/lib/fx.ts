@@ -1,17 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import YahooFinance from 'yahoo-finance2';
 import { getDb } from '@/lib/db';
+import { LRUCache, withTimeout } from '@/lib/resilience';
 
 const yf = new (YahooFinance as any)({ suppressNotices: ['yahooSurvey'] });
 
 // In-memory cache for current FX rates (5min TTL)
-interface CacheEntry {
-  rate: number;
-  timestamp: number;
-}
-
-const currentRateCache = new Map<string, CacheEntry>();
 const RATE_TTL = 5 * 60 * 1000; // 5 minutes
+const currentRateCache = new LRUCache<string, number>(50, RATE_TTL);
 
 /**
  * Get historical FX rate for a currency pair on a specific date.
@@ -34,11 +30,11 @@ export async function getHistoricalRate(from: string, to: string, date: string):
     const dayBefore = new Date(targetDate);
     dayBefore.setDate(dayBefore.getDate() - 5); // go back 5 days to handle weekends/holidays
 
-    const result: any = await yf.chart(symbol, {
+    const result: any = await withTimeout(yf.chart(symbol, {
       period1: dayBefore.toISOString().split('T')[0],
       period2: new Date(targetDate.getTime() + 86400000).toISOString().split('T')[0],
       interval: '1d',
-    });
+    }), 10_000);
 
     const quotes = result.quotes || [];
     if (quotes.length === 0) {
@@ -81,23 +77,21 @@ export async function getCurrentRate(from: string, to: string): Promise<number> 
 
   const pair = `${from}${to}`;
   const cached = currentRateCache.get(pair);
-  if (cached && Date.now() - cached.timestamp < RATE_TTL) {
-    return cached.rate;
-  }
+  if (cached !== undefined) return cached;
 
   try {
     const symbol = `${pair}=X`;
-    const result: any = await yf.quote(symbol);
+    const result: any = await withTimeout(yf.quote(symbol), 10_000);
     const rate = result?.regularMarketPrice;
 
     if (!rate || rate <= 0) {
-      return cached?.rate ?? 1.0;
+      return currentRateCache.getStale(pair) ?? 1.0;
     }
 
-    currentRateCache.set(pair, { rate, timestamp: Date.now() });
+    currentRateCache.set(pair, rate);
     return rate;
   } catch {
-    return cached?.rate ?? 1.0;
+    return currentRateCache.getStale(pair) ?? 1.0;
   }
 }
 

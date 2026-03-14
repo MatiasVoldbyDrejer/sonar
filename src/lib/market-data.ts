@@ -1,22 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import YahooFinance from 'yahoo-finance2';
 import type { Quote, ChartDataPoint, InstrumentStats } from '@/types';
+import { LRUCache, withTimeout } from '@/lib/resilience';
 
 // yahoo-finance2 v3 requires instantiation
 const yf = new (YahooFinance as any)({ suppressNotices: ['yahooSurvey'] });
 
-// In-memory cache with TTL
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-}
-
-const quoteCache = new Map<string, CacheEntry<Quote>>();
-const chartCache = new Map<string, CacheEntry<ChartDataPoint[]>>();
-const fundHoldingsCache = new Map<string, CacheEntry<FundHoldings>>();
+// In-memory caches with LRU eviction and TTL
 const QUOTE_TTL = 5 * 60 * 1000; // 5 minutes
 const CHART_TTL = 30 * 60 * 1000; // 30 minutes
 const FUND_HOLDINGS_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+const quoteCache = new LRUCache<string, Quote>(200, QUOTE_TTL);
+const chartCache = new LRUCache<string, ChartDataPoint[]>(50, CHART_TTL);
+const fundHoldingsCache = new LRUCache<string, FundHoldings>(50, FUND_HOLDINGS_TTL);
 
 export interface FundHolding {
   symbol: string;
@@ -45,13 +42,11 @@ const SECTOR_NAME_MAP: Record<string, string> = {
 
 export async function getQuote(symbol: string): Promise<Quote | null> {
   const cached = quoteCache.get(symbol);
-  if (cached && Date.now() - cached.timestamp < QUOTE_TTL) {
-    return cached.data;
-  }
+  if (cached) return cached;
 
   try {
-    const result: any = await yf.quote(symbol);
-    if (!result || !result.regularMarketPrice) return cached?.data ?? null;
+    const result: any = await withTimeout(yf.quote(symbol), 10_000);
+    if (!result || !result.regularMarketPrice) return quoteCache.getStale(symbol) ?? null;
 
     const quote: Quote = {
       symbol,
@@ -63,10 +58,10 @@ export async function getQuote(symbol: string): Promise<Quote | null> {
       updatedAt: new Date().toISOString(),
     };
 
-    quoteCache.set(symbol, { data: quote, timestamp: Date.now() });
+    quoteCache.set(symbol, quote);
     return quote;
   } catch {
-    return cached?.data ?? null;
+    return quoteCache.getStale(symbol) ?? null;
   }
 }
 
@@ -83,7 +78,7 @@ export async function getBatchQuotes(symbols: string[]): Promise<Map<string, Quo
 
 export async function getQuoteWithStats(symbol: string): Promise<{ quote: Quote; stats: InstrumentStats } | null> {
   try {
-    const result: any = await yf.quote(symbol);
+    const result: any = await withTimeout(yf.quote(symbol), 10_000);
     if (!result || !result.regularMarketPrice) return null;
 
     const quote: Quote = {
@@ -107,7 +102,7 @@ export async function getQuoteWithStats(symbol: string): Promise<{ quote: Quote;
       dividendYield: result.dividendYield ?? null,
     };
 
-    quoteCache.set(symbol, { data: quote, timestamp: Date.now() });
+    quoteCache.set(symbol, quote);
     return { quote, stats };
   } catch {
     return null;
@@ -117,15 +112,13 @@ export async function getQuoteWithStats(symbol: string): Promise<{ quote: Quote;
 export async function getChart(symbol: string, period: string = '1y'): Promise<ChartDataPoint[]> {
   const cacheKey = `${symbol}:${period}`;
   const cached = chartCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CHART_TTL) {
-    return cached.data;
-  }
+  if (cached) return cached;
 
   try {
-    const result: any = await yf.chart(symbol, {
+    const result: any = await withTimeout(yf.chart(symbol, {
       period1: getStartDate(period),
       interval: getInterval(period),
-    });
+    }), 15_000);
 
     const data: ChartDataPoint[] = (result.quotes || [])
       .filter((q: any) => q.close != null)
@@ -135,16 +128,16 @@ export async function getChart(symbol: string, period: string = '1y'): Promise<C
         volume: q.volume as number | undefined,
       }));
 
-    chartCache.set(cacheKey, { data, timestamp: Date.now() });
+    chartCache.set(cacheKey, data);
     return data;
   } catch {
-    return cached?.data ?? [];
+    return chartCache.getStale(cacheKey) ?? [];
   }
 }
 
 export async function searchSymbol(query: string) {
   try {
-    const results: any = await yf.search(query, { quotesCount: 10, newsCount: 0 });
+    const results: any = await withTimeout(yf.search(query, { quotesCount: 10, newsCount: 0 }), 10_000);
     return mapSearchQuotes(results.quotes || []);
   } catch (err: any) {
     // yahoo-finance2 throws validation errors but includes parsed data in err.result
@@ -166,7 +159,7 @@ function mapSearchQuotes(quotes: any[]) {
 
 export async function getAssetProfile(symbol: string): Promise<{ sector: string; industry: string; country: string } | null> {
   try {
-    const result: any = await yf.quoteSummary(symbol, { modules: ['assetProfile'] });
+    const result: any = await withTimeout(yf.quoteSummary(symbol, { modules: ['assetProfile'] }), 10_000);
     const profile = result?.assetProfile;
     if (!profile) return null;
 
@@ -212,14 +205,12 @@ function getInterval(period: string): '1d' | '1wk' | '1mo' {
 
 export async function getFundHoldings(symbol: string): Promise<FundHoldings | null> {
   const cached = fundHoldingsCache.get(symbol);
-  if (cached && Date.now() - cached.timestamp < FUND_HOLDINGS_TTL) {
-    return cached.data;
-  }
+  if (cached) return cached;
 
   try {
-    const result: any = await yf.quoteSummary(symbol, { modules: ['topHoldings'] });
+    const result: any = await withTimeout(yf.quoteSummary(symbol, { modules: ['topHoldings'] }), 10_000);
     const th = result?.topHoldings;
-    if (!th) return cached?.data ?? null;
+    if (!th) return fundHoldingsCache.getStale(symbol) ?? null;
 
     const holdings: FundHolding[] = (th.holdings || []).map((h: any) => ({
       symbol: (h.symbol as string) ?? '',
@@ -239,9 +230,9 @@ export async function getFundHoldings(symbol: string): Promise<FundHoldings | nu
     }
 
     const data: FundHoldings = { holdings, sectorWeightings };
-    fundHoldingsCache.set(symbol, { data, timestamp: Date.now() });
+    fundHoldingsCache.set(symbol, data);
     return data;
   } catch {
-    return cached?.data ?? null;
+    return fundHoldingsCache.getStale(symbol) ?? null;
   }
 }

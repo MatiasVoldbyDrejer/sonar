@@ -279,11 +279,11 @@ export function ChatView({ chat }: ChatViewProps) {
 
   const showCentered = isNewThread && messages.length === 0 && !isStreaming;
 
-  const inputForm = (
+  const inputForm = (maxWidth = 640) => (
     <form
       onSubmit={handleSubmit}
       style={{
-        maxWidth: 640,
+        maxWidth,
         width: "100%",
         margin: "0 auto",
         pointerEvents: "auto",
@@ -477,7 +477,7 @@ export function ChatView({ chat }: ChatViewProps) {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
               />
-              {inputForm}
+              {inputForm(640)}
             </div>
           </motion.div>
         ) : (
@@ -494,7 +494,7 @@ export function ChatView({ chat }: ChatViewProps) {
             >
               <div
                 style={{
-                  maxWidth: 768,
+                  maxWidth: 640,
                   margin: "0 auto",
                   padding: "16px 0",
                   paddingBottom: 160,
@@ -529,14 +529,14 @@ export function ChatView({ chat }: ChatViewProps) {
               style={{
                 position: "fixed",
                 bottom: "1rem",
-                left: 224,
+                left: 200,
                 right: 0,
                 zIndex: 20,
                 padding: "0 16px",
                 pointerEvents: "none",
               }}
             >
-              {inputForm}
+              {inputForm(640)}
             </div>
           </motion.div>
         )}

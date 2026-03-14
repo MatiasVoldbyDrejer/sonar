@@ -3,6 +3,7 @@ import { getDb, mapInstrumentRow } from '@/lib/db';
 import { queryPerplexity } from '@/lib/perplexity';
 import { deepDivePrompt } from '@/lib/prompts';
 import { getInvestorProfile } from '@/lib/profile';
+import { apiError } from '@/lib/resilience';
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ isin: string }> }) {
   const { isin } = await params;
@@ -35,7 +36,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const profile = getInvestorProfile();
   const prompt = deepDivePrompt(instrument.name, instrument.isin, instrument.ticker, profile);
-  const result = await queryPerplexity(prompt);
+
+  let result: Awaited<ReturnType<typeof queryPerplexity>>;
+  try {
+    result = await queryPerplexity(prompt);
+  } catch (error) {
+    console.error('Analysis failed:', error);
+    return apiError('Analysis failed', 500);
+  }
 
   db.prepare(
     `INSERT INTO analysis_cache (cache_key, content, citations, query_used, created_at)
