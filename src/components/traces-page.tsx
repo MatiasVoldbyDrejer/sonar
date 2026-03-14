@@ -32,6 +32,26 @@ function formatTokens(input: number, output: number): string {
   return `${fmt(input)} / ${fmt(output)}`;
 }
 
+const STEP_PRICING: Record<string, { input: number; output: number }> = {
+  'claude-sonnet-4-6': { input: 3, output: 15 },
+  'claude-opus-4-6': { input: 15, output: 75 },
+  'gemini-3-flash-preview': { input: 0.10, output: 0.40 },
+  'gemini-3.1-flash-lite-preview': { input: 0.02, output: 0.08 },
+};
+
+function getStepCost(modelId: string, inputTokens: number, outputTokens: number): number | null {
+  const pricing = STEP_PRICING[modelId]
+    ?? Object.entries(STEP_PRICING).find(([k]) => modelId.includes(k) || k.includes(modelId))?.[1];
+  if (!pricing) return null;
+  return (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
+}
+
+function formatCost(costUsd: number | null): string {
+  if (costUsd === null) return "—";
+  if (costUsd < 0.01) return `$${costUsd.toFixed(4)}`;
+  return `$${costUsd.toFixed(2)}`;
+}
+
 function modelBadgeColor(modelId: string): string {
   if (modelId.includes("opus")) return "#a78bfa";
   if (modelId.includes("sonnet")) return "#60a5fa";
@@ -139,6 +159,7 @@ function TraceContent({ trace }: { trace: Trace }) {
         <span>Model: <span style={{ color: modelBadgeColor(trace.modelId) }}>{modelLabel(trace.modelId)}</span></span>
         <span>Tokens: {formatTokens(trace.totalInputTokens, trace.totalOutputTokens)}</span>
         <span>Duration: {formatDuration(trace.durationMs)}</span>
+        <span>Cost: {formatCost(trace.costUsd)}</span>
         <span>Finish: {trace.finishReason}</span>
         {trace.chatId && (
           <a href={`/chat/${trace.chatId}`} style={{ color: "var(--foreground)", textDecoration: "underline" }}>
@@ -355,8 +376,9 @@ function StepDetail({ step }: { step: Trace["steps"][0] }) {
             </span>
           )}
         </div>
-        <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontWeight: 400 }}>
-          {step.inputTokens + step.outputTokens} tok
+        <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontWeight: 400, display: "flex", gap: 8 }}>
+          <span>{step.inputTokens + step.outputTokens} tok</span>
+          <span>{formatCost(getStepCost(step.modelId, step.inputTokens, step.outputTokens))}</span>
         </span>
       </button>
 
@@ -453,7 +475,7 @@ export function TracesPage() {
 
       {/* Content */}
       <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <div style={{ width: "100%", maxWidth: 800, padding: "20px 24px" }}>
+        <div style={{ width: "100%", padding: "20px 24px" }}>
           {/* Search */}
           <div style={{ position: "relative", marginBottom: 20 }}>
             <Search
@@ -499,7 +521,7 @@ export function TracesPage() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                    {["Time", "Model", "Prompt", "Steps", "Tools", "Tokens (in/out)", "Duration"].map(h => (
+                    {["Time", "Model", "Prompt", "Steps", "Tools", "Tokens (in/out)", "Duration", "Cost"].map(h => (
                       <th key={h} style={{
                         textAlign: "left", padding: "8px 12px", fontSize: 11, fontWeight: 600,
                         textTransform: "uppercase", letterSpacing: "0.05em",
@@ -579,6 +601,9 @@ export function TracesPage() {
                       </td>
                       <td style={{ padding: "10px 12px", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>
                         {formatDuration(trace.durationMs)}
+                      </td>
+                      <td style={{ padding: "10px 12px", color: "var(--muted-foreground)", whiteSpace: "nowrap", fontFamily: "monospace", fontSize: 12 }}>
+                        {formatCost(trace.costUsd)}
                       </td>
                     </motion.tr>
                   ))}

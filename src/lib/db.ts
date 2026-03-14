@@ -401,6 +401,35 @@ export interface TraceStep {
   finishReason: string;
 }
 
+// Pricing per million tokens (USD)
+const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+  'claude-sonnet-4-6': { input: 3, output: 15 },
+  'claude-opus-4-6': { input: 15, output: 75 },
+  'gemini-3-flash-preview': { input: 0.10, output: 0.40 },
+  'gemini-3.1-flash-lite-preview': { input: 0.02, output: 0.08 },
+};
+
+function getModelPricing(modelId: string) {
+  if (MODEL_PRICING[modelId]) return MODEL_PRICING[modelId];
+  for (const [key, pricing] of Object.entries(MODEL_PRICING)) {
+    if (modelId.includes(key) || key.includes(modelId)) return pricing;
+  }
+  return null;
+}
+
+function computeStepsCost(steps: TraceStep[]): number | null {
+  let total = 0;
+  let hasAnyPricing = false;
+  for (const step of steps) {
+    const pricing = getModelPricing(step.modelId);
+    if (pricing) {
+      hasAnyPricing = true;
+      total += (step.inputTokens * pricing.input + step.outputTokens * pricing.output) / 1_000_000;
+    }
+  }
+  return hasAnyPricing ? total : null;
+}
+
 export interface Trace {
   id: string;
   chatId: string | null;
@@ -413,6 +442,7 @@ export interface Trace {
   durationMs: number;
   finishReason: string;
   createdAt: string;
+  costUsd: number | null;
 }
 
 export interface TraceSummary {
@@ -426,6 +456,7 @@ export interface TraceSummary {
   totalOutputTokens: number;
   durationMs: number;
   createdAt: string;
+  costUsd: number | null;
 }
 
 export function createTrace(data: {
@@ -487,18 +518,20 @@ export function getTraceById(id: string): Trace | null {
   const db = getDb();
   const row = db.prepare('SELECT * FROM traces WHERE id = ?').get(id) as Record<string, unknown> | undefined;
   if (!row) return null;
+  const steps = JSON.parse(row.steps as string) as TraceStep[];
   return {
     id: row.id as string,
     chatId: (row.chat_id as string) ?? null,
     modelId: row.model_id as string,
     prompt: row.prompt as string,
     responseText: row.response_text as string,
-    steps: JSON.parse(row.steps as string),
+    steps,
     totalInputTokens: row.total_input_tokens as number,
     totalOutputTokens: row.total_output_tokens as number,
     durationMs: row.duration_ms as number,
     finishReason: row.finish_reason as string,
     createdAt: row.created_at as string,
+    costUsd: computeStepsCost(steps),
   };
 }
 
@@ -535,6 +568,7 @@ export function listTraces(limit = 30, cursor?: string, search?: string): TraceS
       totalOutputTokens: row.total_output_tokens as number,
       durationMs: row.duration_ms as number,
       createdAt: row.created_at as string,
+      costUsd: computeStepsCost(steps),
     };
   });
 }
