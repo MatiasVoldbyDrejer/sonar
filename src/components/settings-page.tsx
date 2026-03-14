@@ -33,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import type { Instrument, Account, Transaction } from "@/types";
+import { MODEL_OPTIONS, DEFAULT_MODEL } from "@/lib/constants";
 import { EditInstrumentForm } from "@/components/edit-instrument-form";
 import { InstrumentBadge } from "@/components/instrument-badge";
 
@@ -86,7 +87,7 @@ export function SettingsPage() {
 
         <TabsContent value="general" style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 16 }}>
           <GeneralTab />
-          <ModelTab />
+          <ModelsTab />
           <TelegramSection />
         </TabsContent>
 
@@ -184,71 +185,92 @@ function GeneralTab() {
   );
 }
 
-// ─── Model Tab ────────────────────────────────────────────────────────
+// ─── Models Tab ───────────────────────────────────────────────────────
 
-const MODEL_OPTIONS = [
-  { value: "sonnet", label: "Claude Sonnet" },
-  { value: "opus", label: "Claude Opus" },
-  { value: "gemini-flash", label: "Gemini 3 Flash" },
-  { value: "gemini-flash-lite", label: "Gemini 3.1 Flash Lite" },
-];
-
-function ModelTab() {
-  const [model, setModel] = useState("");
+function ModelsTab() {
+  const [chatModel, setChatModel] = useState("");
+  const [telegramModel, setTelegramModel] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/settings/model")
-      .then((r) => r.json())
-      .then((data) => setModel(data.model ?? "sonnet"))
-      .catch(() => setModel("sonnet"))
+    Promise.all([
+      fetch("/api/settings/model").then((r) => r.json()),
+      fetch("/api/settings/telegram-model").then((r) => r.json()),
+    ])
+      .then(([chatData, tgData]) => {
+        setChatModel(chatData.model ?? DEFAULT_MODEL);
+        setTelegramModel(tgData.model ?? DEFAULT_MODEL);
+      })
+      .catch(() => {
+        setChatModel(DEFAULT_MODEL);
+        setTelegramModel(DEFAULT_MODEL);
+      })
       .finally(() => setLoading(false));
   }, []);
 
-  const handleChange = async (value: string) => {
-    setModel(value);
+  const updateModel = async (endpoint: string, value: string, setter: (v: string) => void, label: string) => {
+    setter(value);
     try {
-      const res = await fetch("/api/settings/model", {
+      const res = await fetch(endpoint, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: value }),
       });
       if (res.ok) {
-        toast.success(`AI model set to ${MODEL_OPTIONS.find((m) => m.value === value)?.label}`);
+        toast.success(`${label} set to ${MODEL_OPTIONS.find((m) => m.value === value)?.label}`);
       } else {
-        toast.error("Failed to update model");
+        toast.error(`Failed to update ${label.toLowerCase()}`);
       }
     } catch {
-      toast.error("Failed to update model");
+      toast.error(`Failed to update ${label.toLowerCase()}`);
     }
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>AI Model</CardTitle>
+        <CardTitle>Models</CardTitle>
       </CardHeader>
-      <CardContent style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <p style={{ fontSize: "0.875rem", color: "var(--muted-foreground)" }}>
-          Model used for the chat agent.
-        </p>
+      <CardContent style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {loading ? (
           <p style={{ color: "var(--muted-foreground)" }}>Loading...</p>
         ) : (
-          <div style={{ maxWidth: 200 }}>
-            <Select value={model} onValueChange={handleChange}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {MODEL_OPTIONS.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <Label>Chat</Label>
+              <div style={{ maxWidth: 200 }}>
+                <Select value={chatModel} onValueChange={(v) => updateModel("/api/settings/model", v, setChatModel, "Chat model")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MODEL_OPTIONS.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <Label>Telegram</Label>
+              <div style={{ maxWidth: 200 }}>
+                <Select value={telegramModel} onValueChange={(v) => updateModel("/api/settings/telegram-model", v, setTelegramModel, "Telegram model")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MODEL_OPTIONS.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

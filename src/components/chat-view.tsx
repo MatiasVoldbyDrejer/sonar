@@ -6,13 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ChatMessage } from "@/components/chat-message";
 import { ArrowUp, ChevronDown } from "lucide-react";
 import type { Chat, Instrument } from "@/types";
-
-const MODEL_OPTIONS = [
-  { value: "sonnet", label: "Sonnet" },
-  { value: "opus", label: "Opus" },
-  { value: "gemini-flash", label: "Gemini Flash" },
-  { value: "gemini-flash-lite", label: "Flash Lite" },
-];
+import { MODEL_OPTIONS, DEFAULT_MODEL } from "@/lib/constants";
 
 interface StoredMessage {
   id: string;
@@ -48,8 +42,8 @@ export function ChatView({ chat }: ChatViewProps) {
     if (isNewThread) {
       fetch("/api/settings/model")
         .then((r) => r.json())
-        .then((data) => setSelectedModel(data.model ?? "sonnet"))
-        .catch(() => setSelectedModel("sonnet"));
+        .then((data) => setSelectedModel(data.model ?? DEFAULT_MODEL))
+        .catch(() => setSelectedModel(DEFAULT_MODEL));
     }
   }, [isNewThread]);
 

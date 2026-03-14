@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CalendarClock, ChevronDown, ChevronUp, Play, Pause, Pencil, Trash2, Loader2, RotateCw, Check, X } from "lucide-react";
+import { MODEL_OPTIONS, DEFAULT_MODEL } from "@/lib/constants";
 
 interface RecurringTaskBlockData {
   id: number;
@@ -12,13 +13,6 @@ interface RecurringTaskBlockData {
   timezone?: string;
   model?: string;
 }
-
-const MODEL_OPTIONS = [
-  { value: "sonnet", label: "Claude Sonnet" },
-  { value: "opus", label: "Claude Opus" },
-  { value: "gemini-flash", label: "Gemini 3 Flash" },
-  { value: "gemini-flash-lite", label: "Gemini 3.1 Flash Lite" },
-];
 
 const SCHEDULE_PRESETS = [
   { label: "Daily 10am", value: "0 10 * * *" },
@@ -55,7 +49,7 @@ export function RecurringTaskBlock({ data }: { data: RecurringTaskBlockData }) {
   const [editName, setEditName] = useState(data.name);
   const [editPrompt, setEditPrompt] = useState(data.prompt);
   const [editSchedule, setEditSchedule] = useState(data.schedule);
-  const [editModel, setEditModel] = useState(data.model || "gemini-flash");
+  const [editModel, setEditModel] = useState(data.model || DEFAULT_MODEL);
   const [saving, setSaving] = useState(false);
 
   async function handleToggle() {
@@ -105,7 +99,7 @@ export function RecurringTaskBlock({ data }: { data: RecurringTaskBlockData }) {
     setEditName(task.name);
     setEditPrompt(task.prompt);
     setEditSchedule(task.schedule);
-    setEditModel(task.model || "gemini-flash");
+    setEditModel(task.model || DEFAULT_MODEL);
     setEditing(false);
   }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { listRecurringTasks, createRecurringTask } from '@/lib/recurring-tasks-db';
 import { scheduleTask } from '@/lib/scheduler';
 import { getSetting } from '@/lib/db';
+import { DEFAULT_MODEL } from '@/lib/constants';
 
 export async function GET() {
   const tasks = listRecurringTasks();
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
   }
 
   const timezone = body.timezone || getSetting('timezone') || 'Europe/Copenhagen';
-  const model = body.model || 'gemini-flash';
+  const model = body.model || DEFAULT_MODEL;
   const task = createRecurringTask(name, prompt, cronExpression, timezone, model);
   scheduleTask(task);
 

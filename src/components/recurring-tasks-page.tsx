@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Play, Pause, Trash2, Plus, Loader2, CalendarClock, Pencil, RotateCw } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import type { RecurringTask } from "@/types";
+import { MODEL_OPTIONS, DEFAULT_MODEL } from "@/lib/constants";
 
 function formatLastRun(dateStr: string | null): string {
   if (!dateStr) return "Never";
@@ -211,18 +212,11 @@ export function RecurringTasksPage() {
   );
 }
 
-const MODEL_OPTIONS = [
-  { value: "sonnet", label: "Claude Sonnet" },
-  { value: "opus", label: "Claude Opus" },
-  { value: "gemini-flash", label: "Gemini 3 Flash" },
-  { value: "gemini-flash-lite", label: "Gemini 3.1 Flash Lite" },
-];
-
 function CreateTaskDialog({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
   const [cronExpression, setCronExpression] = useState("0 10 * * *");
-  const [model, setModel] = useState("gemini-flash");
+  const [model, setModel] = useState<string>(DEFAULT_MODEL);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -405,7 +399,7 @@ function EditTaskDialog({ task, onClose, onSaved }: { task: RecurringTask; onClo
   const [name, setName] = useState(task.name);
   const [prompt, setPrompt] = useState(task.prompt);
   const [cronExpression, setCronExpression] = useState(task.cronExpression);
-  const [model, setModel] = useState(task.model || "gemini-flash");
+  const [model, setModel] = useState<string>(task.model || DEFAULT_MODEL);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 

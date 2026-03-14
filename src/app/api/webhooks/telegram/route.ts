@@ -17,6 +17,8 @@ import {
 } from '@/lib/telegram';
 import { getSetting, setSetting, createTraceFromResult } from '@/lib/db';
 import type { ChatMessage } from '@/types';
+import { DEFAULT_TELEGRAM_MODEL } from '@/lib/constants';
+import type { ModelId } from '@/lib/constants';
 
 const TELEGRAM_FORMAT_INSTRUCTION = `
 
@@ -128,7 +130,8 @@ async function handleUpdate(update: Record<string, unknown>) {
 
   // Run agent
   const profile = getInvestorProfile();
-  const config = getMainAgentConfig(profile, 'gemini-flash', 'telegram');
+  const modelId = (getSetting('telegram_model') as ModelId) || DEFAULT_TELEGRAM_MODEL;
+  const config = getMainAgentConfig(profile, modelId, 'telegram');
   const startTime = Date.now();
 
   const result = await generateText({
@@ -147,7 +150,7 @@ async function handleUpdate(update: Record<string, unknown>) {
       chatId: chatThread.id,
       prompt: text,
       result,
-      fallbackModelId: 'gemini-flash',
+      fallbackModelId: DEFAULT_TELEGRAM_MODEL,
       startTime,
     });
   } catch (e) {

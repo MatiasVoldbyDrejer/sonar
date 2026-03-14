@@ -13,11 +13,12 @@ import { buildUIBlocksPrompt } from './ui-blocks';
 import { getAgentMemories, getSetting } from '@/lib/db';
 import type { AgentMemory } from '@/lib/db';
 import type { InvestorProfile } from '@/types';
-
-export type ModelId = 'sonnet' | 'opus' | 'gemini-flash' | 'gemini-flash-lite';
+import { DEFAULT_MODEL } from '@/lib/constants';
+export type { ModelId } from '@/lib/constants';
+import type { ModelId } from '@/lib/constants';
 
 export function getModel(id?: ModelId) {
-  const choice = id ?? (getSetting('ai_model') as ModelId) ?? 'sonnet';
+  const choice = id ?? (getSetting('ai_model') as ModelId) ?? DEFAULT_MODEL;
   switch (choice) {
     case 'opus': return anthropic('claude-opus-4-6');
     case 'gemini-flash': return google('gemini-3-flash-preview');

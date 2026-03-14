@@ -7,6 +7,7 @@ import { GET as getDeepDiveData } from '@/app/api/deepdive/route';
 import { createRecurringTask, listRecurringTasks, updateRecurringTask } from '@/lib/recurring-tasks-db';
 import { scheduleTask, unscheduleTask, rescheduleTask } from '@/lib/scheduler';
 import type { Position } from '@/types';
+import { DEFAULT_MODEL } from '@/lib/constants';
 
 export const quoteTool = tool({
   description:
@@ -421,7 +422,7 @@ export const createRecurringTaskTool = tool({
     }
 
     const timezone = getSetting('timezone') || 'Europe/Copenhagen';
-    const task = createRecurringTask(name, prompt, schedule, timezone, model || 'gemini-flash');
+    const task = createRecurringTask(name, prompt, schedule, timezone, model || DEFAULT_MODEL);
     scheduleTask(task);
 
     return {
@@ -432,7 +433,7 @@ export const createRecurringTaskTool = tool({
       schedule: task.cronExpression,
       timezone: task.timezone,
       active: true,
-      model: task.model || 'gemini-flash',
+      model: task.model || DEFAULT_MODEL,
     };
   },
 });

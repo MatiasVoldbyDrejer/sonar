@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSetting, setSetting } from '@/lib/db';
-import { MODEL_OPTIONS, DEFAULT_MODEL } from '@/lib/constants';
+import { MODEL_OPTIONS, DEFAULT_TELEGRAM_MODEL } from '@/lib/constants';
 
 const ALLOWED_MODELS = MODEL_OPTIONS.map(o => o.value);
 
 export async function GET() {
-  const model = getSetting('ai_model') ?? DEFAULT_MODEL;
+  const model = getSetting('telegram_model') ?? DEFAULT_TELEGRAM_MODEL;
   return NextResponse.json({ model });
 }
 
@@ -20,6 +20,6 @@ export async function PUT(request: NextRequest) {
     );
   }
 
-  setSetting('ai_model', model);
+  setSetting('telegram_model', model);
   return NextResponse.json({ model });
 }

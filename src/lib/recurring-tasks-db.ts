@@ -1,5 +1,6 @@
 import { getDb } from '@/lib/db';
 import type { RecurringTask } from '@/types';
+import { DEFAULT_MODEL } from '@/lib/constants';
 
 function mapRow(row: Record<string, unknown>): RecurringTask {
   return {
@@ -22,7 +23,7 @@ export function createRecurringTask(
   prompt: string,
   cronExpression: string,
   timezone: string = 'Europe/Copenhagen',
-  model: string = 'gemini-flash'
+  model: string = DEFAULT_MODEL
 ): RecurringTask {
   const db = getDb();
   const result = db.prepare(
